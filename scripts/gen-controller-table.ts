@@ -1,10 +1,10 @@
-// Regenerates the "Community-tested controllers" table in README.md from every
+// Regenerates the "Community-tested controllers" table in CONTROLLERS.md from every
 // fixture in test/fixtures/controllers/. The fixture files are the doctor's
 // report output verbatim, so the table is a pure projection of committed data —
 // deterministic (sorted by product) so a fixture PR that forgets to run
 // `npm run gen:controllers` fails the freshness test in test/fixtures.test.ts.
 //
-// The generation logic is exported so the test can assert README matches
+// The generation logic is exported so the test can assert CONTROLLERS.md matches
 // without shelling out.
 
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 export const FIXTURES_DIR = join(HERE, '..', 'test', 'fixtures', 'controllers')
-export const README_PATH = join(HERE, '..', 'README.md')
+export const CONTROLLERS_PATH = join(HERE, '..', 'CONTROLLERS.md')
 const START = '<!-- controllers:start -->'
 const END = '<!-- controllers:end -->'
 
@@ -84,19 +84,19 @@ export function renderTable(reports: FixtureReport[]): string {
   return [header, ...rows].join('\n')
 }
 
-/** Replace the marker block in a README string with a freshly rendered table. */
-export function updateReadme(readme: string, table: string): string {
-  const start = readme.indexOf(START)
-  const end = readme.indexOf(END)
+/** Replace the marker block in a controller document with a freshly rendered table. */
+export function updateControllersDocument(document: string, table: string): string {
+  const start = document.indexOf(START)
+  const end = document.indexOf(END)
   if (start === -1 || end === -1 || end < start) {
-    throw new Error(`README markers ${START} / ${END} not found`)
+    throw new Error(`CONTROLLERS.md markers ${START} / ${END} not found`)
   }
-  return readme.slice(0, start + START.length) + '\n' + table + '\n' + readme.slice(end)
+  return document.slice(0, start + START.length) + '\n' + table + '\n' + document.slice(end)
 }
 
 /**
  * Normalize a markdown table so cell padding/alignment doesn't matter — prettier
- * pads the committed README's columns, gen emits them tight. Compares on data.
+ * pads the committed document's columns, gen emits them tight. Compares on data.
  */
 export function normalizeTable(table: string): string {
   return table
@@ -115,24 +115,24 @@ export function normalizeTable(table: string): string {
 }
 
 /** Extract the current table text sitting between the markers (for the freshness test). */
-export function extractTable(readme: string): string {
-  const start = readme.indexOf(START)
-  const end = readme.indexOf(END)
+export function extractTable(document: string): string {
+  const start = document.indexOf(START)
+  const end = document.indexOf(END)
   if (start === -1 || end === -1 || end < start) {
-    throw new Error(`README markers ${START} / ${END} not found`)
+    throw new Error(`CONTROLLERS.md markers ${START} / ${END} not found`)
   }
-  return readme
+  return document
     .slice(start + START.length, end)
     .replace(/^\n/, '')
     .replace(/\n$/, '')
 }
 
-/** CLI entry: rewrite README.md in place. */
+/** CLI entry: rewrite CONTROLLERS.md in place. */
 function main(): void {
-  const readme = readFileSync(README_PATH, 'utf8')
-  const updated = updateReadme(readme, renderTable(loadFixtures()))
-  writeFileSync(README_PATH, updated)
-  console.log('Regenerated the community-tested controllers table in README.md')
+  const document = readFileSync(CONTROLLERS_PATH, 'utf8')
+  const updated = updateControllersDocument(document, renderTable(loadFixtures()))
+  writeFileSync(CONTROLLERS_PATH, updated)
+  console.log('Regenerated the community-tested controllers table in CONTROLLERS.md')
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

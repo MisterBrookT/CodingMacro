@@ -3,7 +3,7 @@
 //   1. replays every captured raw report through the matching parse function
 //      and asserts the expected control's press event fires — so a new fixture
 //      dropped in by a contributor gets CI coverage with zero test edits;
-//   2. asserts README's generated controller table is up to date, so a fixture
+//   2. asserts CONTROLLERS.md's generated table is up to date, so a fixture
 //      PR that forgets `npm run gen:controllers` fails with a clear message.
 //
 // DualSense fixtures are skipped for replay: that parsing lives in dualsense-ts,
@@ -16,11 +16,12 @@ import { parseGenericReport } from '../src/controller/generic-driver.js'
 import { parseXboxReport } from '../src/controller/xbox-driver.js'
 import type { ControllerEvent } from '../src/types.js'
 import {
-  README_PATH,
+  CONTROLLERS_PATH,
   extractTable,
   loadFixtures,
   normalizeTable,
   renderTable,
+  updateControllersDocument,
 } from '../scripts/gen-controller-table.js'
 
 // Fixtures carry the full report; this is the slice the replay needs (per-control captures).
@@ -75,9 +76,24 @@ describe('controller fixtures replay through their parse function', () => {
   }
 })
 
-describe('README controller table', () => {
+describe('CONTROLLERS.md controller table', () => {
   it('is up to date (run: npm run gen:controllers)', () => {
-    const readme = readFileSync(README_PATH, 'utf8')
-    expect(normalizeTable(extractTable(readme))).toBe(normalizeTable(renderTable(loadFixtures())))
+    const document = readFileSync(CONTROLLERS_PATH, 'utf8')
+    expect(normalizeTable(extractTable(document))).toBe(normalizeTable(renderTable(loadFixtures())))
+  })
+
+  it('targets only the marked block in CONTROLLERS.md', () => {
+    expect(CONTROLLERS_PATH).toMatch(/CONTROLLERS\.md$/)
+    const document =
+      '# Before\n\n<!-- controllers:start -->\nstale\n<!-- controllers:end -->\n\nAfter\n'
+    expect(updateControllersDocument(document, 'fresh')).toBe(
+      '# Before\n\n<!-- controllers:start -->\nfresh\n<!-- controllers:end -->\n\nAfter\n',
+    )
+  })
+
+  it('fails clearly when the marker contract is missing', () => {
+    expect(() => updateControllersDocument('# Controller compatibility\n', 'fresh')).toThrow(
+      'CONTROLLERS.md markers <!-- controllers:start --> / <!-- controllers:end --> not found',
+    )
   })
 })
