@@ -214,9 +214,10 @@ Controllers with a committed fixture — replayed through their parser on every 
 
 <!-- controllers:start -->
 
-| Controller               | VID:PID   | Connection | Driver | Buttons passed | Output | Status  |
-| ------------------------ | --------- | ---------- | ------ | -------------- | ------ | ------- |
-| Xbox Wireless Controller | 045e:0b12 | usb        | xbox   | 4/4            | none   | ✅ full |
+| Controller                    | VID:PID   | Connection | Driver    | Buttons passed | Output        | Status  |
+| ----------------------------- | --------- | ---------- | --------- | -------------- | ------------- | ------- |
+| DualSense Wireless Controller | 054c:0ce6 | usb        | dualsense | 17/17          | lightbar+LEDs | ✅ full |
+| Xbox Wireless Controller      | 045e:0b12 | usb        | xbox      | 4/4            | none          | ✅ full |
 
 <!-- controllers:end -->
 

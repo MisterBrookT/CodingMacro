@@ -44,7 +44,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "gen:controllers": "tsx scripts/gen-controller-table.ts",
+    "gen:controllers": "tsx scripts/gen-controller-table.ts && prettier --write README.md",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test"
   },
   "dependencies": {
