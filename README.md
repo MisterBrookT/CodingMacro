@@ -2,7 +2,7 @@
 
 # One controller. Your agent workflow.
 
-Physical shortcuts for Claude Code and Codex CLI.
+Bring Codex Micro to any gaming controller and coding harness
 
 ## Start in 60 seconds
 
