@@ -46,6 +46,15 @@ if (invocation.help) {
   process.exit(0)
 }
 
+// `doctor` is standalone: no agent wrapped, no host server. Run it and exit
+// before any of the host/client wiring below. Dynamically imported so its HID
+// + readline machinery never loads for a normal wrap.
+if (invocation.doctor) {
+  const { runDoctor } = await import('./doctor.js')
+  await runDoctor()
+  process.exit(0)
+}
+
 let harness: Harness
 try {
   harness = harnessFor(invocation.kind)
