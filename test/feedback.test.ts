@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { feedbackFor } from '../src/feedback.js'
+import { effectiveFocusIndex, feedbackFor } from '../src/feedback.js'
 import type { SessionSnapshot } from '../src/feedback.js'
+import type { AgentState } from '../src/harness/types.js'
 
 const LAYER_COLOR = { r: 10, g: 20, b: 30 }
 
@@ -49,5 +50,38 @@ describe('feedbackFor', () => {
 
   it('returns no LEDs for an empty session list', () => {
     expect(feedbackFor([], 0, LAYER_COLOR).playerLeds).toBe(0)
+  })
+})
+
+describe('effectiveFocusIndex', () => {
+  const s = (id: string, state: AgentState, order: number) => ({ id, state, order })
+
+  it('returns -1 with no sessions', () => {
+    expect(effectiveFocusIndex([], null, null)).toBe(-1)
+  })
+
+  it('manual focus wins over everything', () => {
+    const sessions = [s('a', 'waiting', 1), s('b', 'executing', 2), s('c', 'idle', 3)]
+    expect(effectiveFocusIndex(sessions, 'c', 'a')).toBe(2)
+  })
+
+  it('falls back to attention session when no manual focus', () => {
+    const sessions = [s('a', 'waiting', 1), s('b', 'executing', 2)]
+    expect(effectiveFocusIndex(sessions, null, 'a')).toBe(0)
+  })
+
+  it('ignores a manual/attention id that no longer exists', () => {
+    const sessions = [s('a', 'executing', 1)]
+    expect(effectiveFocusIndex(sessions, 'gone', 'gone-too')).toBe(0)
+  })
+
+  it('prefers the most recently updated executing session', () => {
+    const sessions = [s('a', 'executing', 5), s('b', 'idle', 9), s('c', 'executing', 7)]
+    expect(effectiveFocusIndex(sessions, null, null)).toBe(2)
+  })
+
+  it('falls back to the most recently updated session of any state', () => {
+    const sessions = [s('a', 'idle', 5), s('b', 'complete', 9), s('c', 'idle', 7)]
+    expect(effectiveFocusIndex(sessions, null, null)).toBe(1)
   })
 })

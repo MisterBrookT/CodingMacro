@@ -79,13 +79,13 @@ export class SessionTracker {
   /**
    * Ordered snapshot of every tracked session, oldest first — for feedback rendering.
    *
+   * Map insertion order is creation order (re-`set` keeps the original slot), so slots stay stable across state changes; `order` carries recency of the last state change.
+   *
    * Returns:
-   *     { id: string; state: AgentState }[]: Sessions in stable slot order.
+   *     { id: string; state: AgentState; order: number }[]: Sessions in stable slot order.
    */
-  list(): { id: string; state: AgentState }[] {
-    return [...this.sessions.entries()]
-      .sort((a, b) => a[1].order - b[1].order)
-      .map(([id, s]) => ({ id, state: s.state }))
+  list(): { id: string; state: AgentState; order: number }[] {
+    return [...this.sessions.entries()].map(([id, s]) => ({ id, state: s.state, order: s.order }))
   }
 
   /**

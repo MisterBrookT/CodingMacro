@@ -50,3 +50,33 @@ export function feedbackFor(
   const playerLeds = sessions.slice(0, MAX_LEDS).reduce((mask: number, _s, i) => mask | (1 << i), 0)
   return { lightbar, playerLeds }
 }
+
+/**
+ * Picks which session the lightbar should mirror when the user hasn't chosen one.
+ *
+ * Priority: manual focus (touchpad) > attention (waiting/error, from `SessionTracker.aggregate()`) > most recently executing > most recently updated. Without this, the lightbar sat on the layer color until the first touchpad click and never showed agent state.
+ *
+ * Args:
+ *     sessions ({ id: string; state: AgentState; order: number }[]): tracked sessions in slot order, `order` = recency of last state change.
+ *     manualId (string | null): session pinned via touchpad focus cycling, if any.
+ *     attentionId (string | null): session demanding attention per the tracker aggregate, if any.
+ *
+ * Returns:
+ *     number: index into `sessions` to focus, or -1 when there are no sessions.
+ */
+export function effectiveFocusIndex(
+  sessions: { id: string; state: AgentState; order: number }[],
+  manualId: string | null,
+  attentionId: string | null,
+): number {
+  for (const id of [manualId, attentionId]) {
+    if (!id) continue
+    const i = sessions.findIndex((s) => s.id === id)
+    if (i >= 0) return i
+  }
+  const latest = (indices: number[]): number =>
+    indices.reduce((a, i) => (a < 0 || sessions[i]!.order > sessions[a]!.order ? i : a), -1)
+  const executing = sessions.flatMap((s, i) => (s.state === 'executing' ? [i] : []))
+  if (executing.length > 0) return latest(executing)
+  return latest(sessions.map((_s, i) => i))
+}

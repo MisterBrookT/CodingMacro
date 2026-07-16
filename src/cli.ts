@@ -17,7 +17,7 @@ import type { Harness } from './harness/types.js'
 import { parseInvocation, USAGE } from './invocation.js'
 import { loadConfig } from './layers.js'
 import type { OpenMicroConfig } from './layers.js'
-import { feedbackFor } from './feedback.js'
+import { effectiveFocusIndex, feedbackFor } from './feedback.js'
 import type { RGB } from './feedback.js'
 import { KeyRepeater } from './keymap.js'
 import { logger } from './logger.js'
@@ -145,10 +145,13 @@ if (!isHost) {
 
   function applyFeedback(): void {
     const sessions = server.tracker.list()
-    const snapshots = sessions.map((s) => ({ state: s.state }))
-    const focusedIndex = focusSessionId ? sessions.findIndex((s) => s.id === focusSessionId) : -1
+    const focusedIndex = effectiveFocusIndex(
+      sessions,
+      focusSessionId,
+      server.tracker.aggregate().focusSessionId,
+    )
     const layerColor = config.layers[router.currentLayer]?.color ?? { r: 0, g: 0, b: 0 }
-    const fb = feedbackFor(snapshots, focusedIndex, layerColor)
+    const fb = feedbackFor(sessions, focusedIndex, layerColor)
     const lightbar = Date.now() < flashUntil && flashColor ? flashColor : fb.lightbar
     hid?.output?.setLightbar(lightbar)
     hid?.output?.setPlayerLeds(fb.playerLeds)

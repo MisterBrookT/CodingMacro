@@ -41,13 +41,20 @@ npm i -g openmicro
 - **Node >= 22** required.
 - **DualSense recommended.** It's the only controller with an RGB lightbar and player LEDs, so it's the only one that shows live agent status. DS4, Xbox, and generic HID gamepads work too, but input-only — no lightbar/LED/rumble output path (see Known gaps).
 
-### macOS setup: grant Input Monitoring (required)
+### Troubleshooting: controller connected but openmicro can't open it
 
-macOS blocks apps from opening HID game controllers until the app hosting the process has **Input Monitoring** permission. Without it, openmicro sees the controller but can't connect — the telltale signature is the controller showing as Connected in System Settings → Game Controllers while openmicro logs a connection timeout (under the hood, node-hid fails with `cannot open device with path DevSrvsID:...`).
+Symptom: System Settings → Game Controllers shows the pad as Connected, but openmicro never logs `DualSense connected` (under the hood, node-hid fails with `cannot open device with path DevSrvsID:...`).
 
-1. Open **System Settings → Privacy & Security → Input Monitoring**.
-2. Click **+** and add your terminal app (Terminal, iTerm2, Ghostty, …) — it usually isn't listed until you add it manually. Make sure its toggle is on.
-3. **Quit the terminal app fully and reopen it.** The grant only takes effect on restart.
+The cause is almost always **another process holding the controller exclusively** (`IOHIDDeviceOpen` returns `kIOReturnExclusiveAccess`, `0xe00002c5`). One gamepad serves one master — quit the others:
+
+- another agent-controller tool (vibesense, an older openmicro session)
+- Steam (Steam Input remaps controllers in the background)
+- a Chrome tab using the Gamepad/WebHID API
+- PS Remote Play
+
+To find the holder: `ioreg -r -n "DualSense Wireless Controller" -l -w0 | grep IOUserClientCreator` lists the PIDs with the device open.
+
+Input Monitoring permission is **not** required for game controllers on current macOS (verified empirically — keyboards/mice need it, gamepads don't).
 
 ## Quick start
 
