@@ -30,6 +30,11 @@ export class RawHidDriver extends EventEmitter implements ControllerHAL {
 
       this.device.on('data', (data: Buffer) => {
         try {
+          // `report` carries the raw HID buffer that produced this batch of
+          // events — `openmicro doctor` listens for it to capture fixtures.
+          // Normal runtime consumers ignore it. Emitted before the parsed
+          // events so a synchronous `data` listener can read the last report.
+          this.emit('report', data)
           for (const event of this.parse(data)) this.emit('data', event)
         } catch (err) {
           logger.error(`${this.controllerType} HID parse error`, err)

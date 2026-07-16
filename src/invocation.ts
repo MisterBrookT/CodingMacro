@@ -12,6 +12,8 @@ export interface ParsedInvocation {
   agentArgs: string[]
   /** True when `--help`/`-h` was requested (cli prints usage and exits). */
   help: boolean
+  /** True when the `doctor` subcommand was requested (cli runs the diagnostic and exits). */
+  doctor: boolean
 }
 
 const DEFAULT_KIND = 'claude'
@@ -27,20 +29,24 @@ const DEFAULT_KIND = 'claude'
  */
 export function parseInvocation(args: string[]): ParsedInvocation {
   if (args[0] === '--help' || args[0] === '-h') {
-    return { kind: DEFAULT_KIND, agentArgs: [], help: true }
+    return { kind: DEFAULT_KIND, agentArgs: [], help: true, doctor: false }
+  }
+  if (args[0] === 'doctor') {
+    return { kind: DEFAULT_KIND, agentArgs: [], help: false, doctor: true }
   }
   // A leading bare word names the harness; a leading flag (or nothing) means
   // "default harness, these are its args".
   if (args.length > 0 && args[0] !== undefined && !args[0].startsWith('-')) {
-    return { kind: args[0], agentArgs: args.slice(1), help: false }
+    return { kind: args[0], agentArgs: args.slice(1), help: false, doctor: false }
   }
-  return { kind: DEFAULT_KIND, agentArgs: args, help: false }
+  return { kind: DEFAULT_KIND, agentArgs: args, help: false, doctor: false }
 }
 
 export const USAGE = `openmicro — drive an AI agent CLI with a game controller.
 
 Usage:
   openmicro [claude|codex] [...agent args]   Wrap the agent CLI (default: claude)
+  openmicro doctor                           Diagnose your controller, write a report
   openmicro --help                           Show this message
 
 The first instance to start becomes the host: it owns the controller and

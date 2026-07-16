@@ -1,6 +1,6 @@
 {
   "name": "openmicro",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Open-source replica of Work Louder's Codex Micro using a consumer gamepad as the physical AI-agent controller.",
   "license": "Apache-2.0",
   "author": "stephenleo",
@@ -44,6 +44,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "gen:controllers": "tsx scripts/gen-controller-table.ts",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test"
   },
   "dependencies": {

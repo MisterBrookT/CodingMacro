@@ -6,7 +6,12 @@ import { parseInvocation } from '../src/invocation.js'
 
 describe('parseInvocation', () => {
   it('defaults to claude with no args', () => {
-    expect(parseInvocation([])).toEqual({ kind: 'claude', agentArgs: [], help: false })
+    expect(parseInvocation([])).toEqual({
+      kind: 'claude',
+      agentArgs: [],
+      help: false,
+      doctor: false,
+    })
   })
 
   it('treats a leading flag as claude args, not a harness kind', () => {
@@ -14,6 +19,7 @@ describe('parseInvocation', () => {
       kind: 'claude',
       agentArgs: ['--resume', 'x'],
       help: false,
+      doctor: false,
     })
   })
 
@@ -22,15 +28,30 @@ describe('parseInvocation', () => {
       kind: 'codex',
       agentArgs: ['--foo'],
       help: false,
+      doctor: false,
     })
   })
 
   it('passes an unknown bare word through as the kind (cli validates it)', () => {
-    expect(parseInvocation(['gemini'])).toEqual({ kind: 'gemini', agentArgs: [], help: false })
+    expect(parseInvocation(['gemini'])).toEqual({
+      kind: 'gemini',
+      agentArgs: [],
+      help: false,
+      doctor: false,
+    })
   })
 
   it('flags --help', () => {
     expect(parseInvocation(['--help']).help).toBe(true)
     expect(parseInvocation(['-h']).help).toBe(true)
+  })
+
+  it('flags the doctor subcommand', () => {
+    expect(parseInvocation(['doctor'])).toEqual({
+      kind: 'claude',
+      agentArgs: [],
+      help: false,
+      doctor: true,
+    })
   })
 })
