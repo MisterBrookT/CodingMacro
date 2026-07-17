@@ -157,7 +157,7 @@ describe('codex-app harness', () => {
       bytes: 'osascript:key code 126',
     })
     expect(codexAppHarness.resolveAction({ type: 'keys', bytes: '\x15' }, ctx)).toEqual({
-      bytes: 'osascript:keystroke "u" using control down',
+      bytes: 'osascript:keystroke "a" using command down\nkey code 51',
     })
   })
 

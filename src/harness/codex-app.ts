@@ -5,6 +5,7 @@
 
 import { execFile } from 'node:child_process'
 import { installCodexHooks } from '../hooks-install.js'
+import { logger } from '../logger.js'
 import { codexHarness } from './codex.js'
 import type { Action, AgentState, Harness } from './types.js'
 
@@ -17,7 +18,9 @@ const KEY_EQUIVALENTS: Record<string, string> = {
   '\x1b[C': 'key code 124', // right arrow
   '\x1b[D': 'key code 123', // left arrow
   '\x1b[Z': 'key code 48 using shift down', // Shift+Tab
-  '\x15': 'keystroke "u" using control down', // Ctrl+U — clear the input line
+  // Clear the input line. Electron text boxes ignore Cocoa's Ctrl+U kill-line,
+  // so select-all + delete (newline = sequential System Events statements).
+  '\x15': 'keystroke "a" using command down\nkey code 51',
 }
 
 export const codexAppHarness: Harness = {
@@ -80,22 +83,29 @@ export const codexAppHarness: Harness = {
     if (sep < 0) return // untagged bytes (e.g. a raw '\x03') have no GUI meaning
     const tag = bytes.slice(0, sep)
     const payload = bytes.slice(sep + 1)
-    // Fire-and-forget like src/herdr.ts; arg arrays only, never a shell string
-    // (prompt text must not be shell-interpretable).
+    // Arg arrays only, never a shell string (prompt text must not be
+    // shell-interpretable). Failures print to the terminal — the terminal is
+    // ours in GUI mode, and a silently dropped keystroke is undebuggable.
+    const report = (err: Error | null, stderr?: string): void => {
+      if (!err) return
+      logger.warn('codex-app command failed', stderr || err.message)
+      console.error(
+        `\x1b[31m●\x1b[0m ${(stderr || err.message).trim()} — if this is a permission error, allow your terminal under System Settings → Privacy & Security → Accessibility and Automation`,
+      )
+    }
     if (tag === 'open') {
-      execFile('open', [payload], () => {})
+      execFile('open', [payload], (err) => report(err))
     } else if (tag === 'osascript') {
       // System Events keystrokes require the terminal to have Accessibility /
-      // Automation permission (System Settings → Privacy & Security).
+      // Automation permission. A newline in the payload runs as sequential
+      // System Events statements (e.g. select-all then delete).
+      const steps = payload
+        .split('\n')
+        .flatMap((step) => ['-e', `tell application "System Events" to ${step}`])
       execFile(
         'osascript',
-        [
-          '-e',
-          'tell application "Codex" to activate',
-          '-e',
-          `tell application "System Events" to ${payload}`,
-        ],
-        () => {},
+        ['-e', 'tell application "Codex" to activate', ...steps],
+        (err, _stdout, stderr) => report(err, stderr),
       )
     }
   },
