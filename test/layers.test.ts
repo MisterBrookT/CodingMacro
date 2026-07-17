@@ -73,6 +73,19 @@ describe('loadConfig / saveConfig', () => {
     expect(fs.readFileSync(configPath, 'utf8')).toBe(bad)
   })
 
+  it('accepts a herdr_space binding and ships it as the default l2', () => {
+    expect(DEFAULT_CONFIG.layers[0].bindings.l2).toEqual({ type: 'herdr_space' })
+    const custom: OpenMicroConfig = {
+      ...DEFAULT_CONFIG,
+      layers: [
+        { name: 'L1', color: { r: 0, g: 0, b: 0 }, bindings: { l2: { type: 'herdr_space' } } },
+        ...DEFAULT_CONFIG.layers.slice(1),
+      ] as OpenMicroConfig['layers'],
+    }
+    saveConfig(custom, configPath)
+    expect(loadConfig(configPath)).toEqual(custom)
+  })
+
   it('rejects an unknown binding key', () => {
     const bad = JSON.stringify({
       layers: [

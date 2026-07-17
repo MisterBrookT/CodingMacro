@@ -14,6 +14,7 @@ import { HidManager } from './controller/hid-manager.js'
 import { dispatchAction } from './dispatch.js'
 import type { DispatchDeps } from './dispatch.js'
 import { harnessFor } from './harness/index.js'
+import { focusAgent, focusWorkspace, listAgents, listWorkspaces } from './herdr.js'
 import type { Harness } from './harness/types.js'
 import { parseInvocation, USAGE } from './invocation.js'
 import { loadConfig } from './layers.js'
@@ -133,6 +134,8 @@ if (!isHost) {
   const repeater = new KeyRepeater()
   const thinkingLevels = new Map<string, number>()
   let focusSessionId: string | null = null
+  let herdrWorkspaceId: string | null = null // null = local mode (no herdr space selected)
+  let herdrAgentTarget: string | null = null // last-focused agent terminal within the space
 
   let feedbackTimer: ReturnType<typeof setTimeout> | null = null
   let flashUntil = 0
@@ -146,8 +149,31 @@ if (!isHost) {
     if (!instanceId || !server.sendKeysToInstance(instanceId, bytes)) agent.write(bytes)
   }
 
+  /** L2: walk [none, ws1, …, wsN] (wrapping); selecting a workspace focuses it in herdr. */
+  async function cycleHerdrSpace(): Promise<void> {
+    const ids = (await listWorkspaces()).map((w) => w.workspace_id)
+    const current = herdrWorkspaceId === null ? -1 : ids.indexOf(herdrWorkspaceId)
+    herdrWorkspaceId = ids[current + 1] ?? null // past the end (or vanished ws) → local mode
+    herdrAgentTarget = null
+    if (herdrWorkspaceId) void focusWorkspace(herdrWorkspaceId)
+  }
+
+  /** Touchpad while a herdr space is selected: cycle the space's agents in herdr. */
+  async function cycleHerdrAgent(): Promise<void> {
+    const agents = (await listAgents()).filter((a) => a.workspace_id === herdrWorkspaceId)
+    if (agents.length === 0) return
+    const current = agents.findIndex((a) => a.terminal_id === herdrAgentTarget)
+    const next = agents[(current + 1) % agents.length]!
+    herdrAgentTarget = next.terminal_id
+    void focusAgent(next.terminal_id)
+  }
+
   /** Change focus: index -1 cycles to the next tracked session, else jumps to a slot. */
   function focusSession(index: number): void {
+    if (herdrWorkspaceId !== null && index < 0) {
+      void cycleHerdrAgent()
+      return
+    }
     const sessions = server.tracker.list()
     if (sessions.length === 0) return
     if (index < 0) {
@@ -200,6 +226,7 @@ if (!isHost) {
     write: writeToFocused,
     focusSession,
     setLayer: (index) => router.setLayer(index),
+    cycleHerdrSpace: () => void cycleHerdrSpace(),
   }
 
   let lastAttentionId: string | null = null

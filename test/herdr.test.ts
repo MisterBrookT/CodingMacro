@@ -7,7 +7,14 @@ const execFile = vi.hoisted(() => vi.fn())
 vi.mock('node:child_process', () => ({ execFile }))
 
 import type { AgentState } from '../src/harness/types.js'
-import { releaseAgent, reportAgentState } from '../src/herdr.js'
+import {
+  focusAgent,
+  focusWorkspace,
+  listAgents,
+  listWorkspaces,
+  releaseAgent,
+  reportAgentState,
+} from '../src/herdr.js'
 
 beforeEach(() => {
   execFile.mockReset()
@@ -55,6 +62,75 @@ describe('reportAgentState', () => {
       cb(new Error('exit 1')),
     )
     expect(() => reportAgentState('pane-1', 'waiting')).not.toThrow()
+  })
+})
+
+type ExecCb = (err: Error | null, stdout: string) => void
+
+function mockStdout(stdout: string): void {
+  execFile.mockImplementationOnce((_cmd: string, _args: string[], cb: ExecCb) => cb(null, stdout))
+}
+
+describe('listWorkspaces / listAgents', () => {
+  it('parses the workspace list JSON', async () => {
+    mockStdout('{"result":{"workspaces":[{"workspace_id":"w3"},{"workspace_id":"w6"}]}}')
+    await expect(listWorkspaces()).resolves.toEqual([
+      { workspace_id: 'w3' },
+      { workspace_id: 'w6' },
+    ])
+    expect(execFile.mock.calls[0]!.slice(0, 2)).toEqual(['herdr', ['workspace', 'list']])
+  })
+
+  it('parses the agent list JSON', async () => {
+    mockStdout('{"result":{"agents":[{"workspace_id":"w3","terminal_id":"term_1"}]}}')
+    await expect(listAgents()).resolves.toEqual([{ workspace_id: 'w3', terminal_id: 'term_1' }])
+    expect(execFile.mock.calls[0]!.slice(0, 2)).toEqual(['herdr', ['agent', 'list']])
+  })
+
+  it.each<[string, () => void]>([
+    [
+      'spawn throw',
+      () =>
+        execFile.mockImplementationOnce(() => {
+          throw new Error('ENOENT')
+        }),
+    ],
+    [
+      'nonzero exit',
+      () =>
+        execFile.mockImplementationOnce((_c: string, _a: string[], cb: ExecCb) =>
+          cb(new Error('exit 1'), ''),
+        ),
+    ],
+    ['bad JSON', () => mockStdout('not json')],
+    ['missing shape', () => mockStdout('{"result":{}}')],
+  ])('returns [] on %s', async (_name, arm) => {
+    arm()
+    await expect(listWorkspaces()).resolves.toEqual([])
+    arm()
+    await expect(listAgents()).resolves.toEqual([])
+  })
+})
+
+describe('focusWorkspace / focusAgent', () => {
+  it('runs the herdr focus commands', async () => {
+    mockStdout('{}')
+    await focusWorkspace('w3')
+    mockStdout('{}')
+    await focusAgent('term_1')
+    expect(execFile.mock.calls[0]!.slice(0, 2)).toEqual(['herdr', ['workspace', 'focus', 'w3']])
+    expect(execFile.mock.calls[1]!.slice(0, 2)).toEqual(['herdr', ['agent', 'focus', 'term_1']])
+  })
+
+  it('resolves silently on failure', async () => {
+    execFile.mockImplementationOnce(() => {
+      throw new Error('ENOENT')
+    })
+    await expect(focusWorkspace('w3')).resolves.toBeUndefined()
+    execFile.mockImplementationOnce((_c: string, _a: string[], cb: ExecCb) =>
+      cb(new Error('exit 1'), ''),
+    )
+    await expect(focusAgent('term_1')).resolves.toBeUndefined()
   })
 })
 

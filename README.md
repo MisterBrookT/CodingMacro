@@ -25,18 +25,19 @@ Controller support depends on the exact device and connection. Check the [contro
 
 ### Text control reference
 
-| Control                                         | Action                                             |
-| ----------------------------------------------- | -------------------------------------------------- |
-| south (✕ / A)                                   | Submit or confirm                                  |
-| east (○ / B)                                    | Interrupt or dismiss                               |
-| north (△ / Y)                                   | Push-to-talk                                       |
-| west (□ / X)                                    | Start a new chat                                   |
-| d-pad                                           | Navigate TUI menus; repeats while held             |
-| left stick flick up / down / left / right       | Review PR / debug / refactor / write tests         |
-| right stick rotate clockwise / counterclockwise | Increase / decrease thinking depth                 |
-| R1                                              | Cycle modes (Shift+Tab)                            |
-| R2                                              | Clear the input line (Ctrl+U)                      |
-| touchpad click                                  | Focus the next session by default, where supported |
+| Control                                         | Action                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------ |
+| south (✕ / A)                                   | Submit or confirm                                            |
+| east (○ / B)                                    | Interrupt or dismiss                                         |
+| north (△ / Y)                                   | Push-to-talk                                                 |
+| west (□ / X)                                    | Start a new chat                                             |
+| d-pad                                           | Navigate TUI menus; repeats while held                       |
+| left stick flick up / down / left / right       | Review PR / debug / refactor / write tests                   |
+| right stick rotate clockwise / counterclockwise | Increase / decrease thinking depth                           |
+| R1                                              | Cycle modes (Shift+Tab)                                      |
+| R2                                              | Clear the input line (Ctrl+U)                                |
+| touchpad click                                  | Focus the next session by default, where supported           |
+| L2                                              | Cycle herdr spaces; touchpad then cycles agents in the space |
 
 Stick flicks fire after returning to center; each quarter-turn steps thinking depth once. Hold L1 with south, east, west, north, d-pad up, or d-pad down to select one of six layers. The first layer ships with these defaults; the other five start empty. Other controls are unbound by default and remappable.
 
@@ -102,7 +103,7 @@ OpenMicro creates `~/.openmicro/config.json` on first run. Edit bindings, layer 
 }
 ```
 
-Binding keys can be buttons such as `south` and `dpad_up`, or gestures such as `lstick_up` and `rstick_cw`. Actions include `accept`, `reject`, `push_to_talk`, `new_chat`, `thinking_depth`, `workflow`, `prompt`, `focus_session`, `layer`, and raw `keys`.
+Binding keys can be buttons such as `south` and `dpad_up`, or gestures such as `lstick_up` and `rstick_cw`. Actions include `accept`, `reject`, `push_to_talk`, `new_chat`, `thinking_depth`, `workflow`, `prompt`, `focus_session`, `layer`, `herdr_space`, and raw `keys`.
 
 ## Sessions and status
 
@@ -110,7 +111,7 @@ The first OpenMicro process owns the controller and becomes the host. Later proc
 
 On DualSense, the lightbar follows the focused session: blue while executing, amber while waiting, green when stopped, red on a detected error, and dim white while idle. The five player LEDs show occupied session slots.
 
-When a wrapped session runs inside a herdr-managed pane, OpenMicro also reports its state (working/blocked/idle) to herdr, so sessions show up in the herdr workspace overview. This is automatic and a no-op outside herdr.
+When a wrapped session runs inside a herdr-managed pane, OpenMicro also reports its state (working/blocked/idle) to herdr, so sessions show up in the herdr workspace overview. This is automatic and a no-op outside herdr. L2 cycles through herdr workspaces (and back to local mode); while a workspace is selected, the touchpad cycles focus across that workspace's agents instead of local sessions.
 
 ## Test or contribute a controller
 

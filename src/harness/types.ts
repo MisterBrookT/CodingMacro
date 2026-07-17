@@ -16,6 +16,7 @@ export type Action =
   | { type: 'prompt'; text: string }
   | { type: 'focus_session'; index: number } // handled by core, never reaches a Harness
   | { type: 'layer'; index: number } // handled by core, never reaches a Harness
+  | { type: 'herdr_space' } // cycle herdr workspaces; handled by core, never reaches a Harness
   | { type: 'keys'; bytes: string } // raw pty passthrough (e.g. dpad arrows), user-remappable
 
 export interface InstallResult {

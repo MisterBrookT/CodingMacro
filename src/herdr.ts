@@ -30,6 +30,86 @@ function run(args: string[]): void {
   }
 }
 
+function runJson(args: string[]): Promise<unknown> {
+  return new Promise((resolve) => {
+    try {
+      execFile('herdr', args, (err, stdout) => {
+        if (err) return resolve(null)
+        try {
+          resolve(JSON.parse(String(stdout)))
+        } catch {
+          resolve(null)
+        }
+      })
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+export interface HerdrWorkspace {
+  workspace_id: string
+  label?: string
+}
+
+export interface HerdrAgent {
+  workspace_id: string
+  /** Focusable target for `herdr agent focus` (terminal id). */
+  terminal_id: string
+}
+
+/**
+ * List herdr workspaces.
+ *
+ * Returns:
+ *     Promise<HerdrWorkspace[]>: Workspaces, or [] on any failure (herdr missing, bad JSON, nonzero exit).
+ */
+export async function listWorkspaces(): Promise<HerdrWorkspace[]> {
+  const parsed = (await runJson(['workspace', 'list'])) as {
+    result?: { workspaces?: unknown }
+  } | null
+  const workspaces = parsed?.result?.workspaces
+  return Array.isArray(workspaces) ? (workspaces as HerdrWorkspace[]) : []
+}
+
+/**
+ * Focus a herdr workspace.
+ *
+ * Args:
+ *     id (string): Herdr workspace id.
+ *
+ * Returns:
+ *     Promise<void>: Resolves silently even on failure.
+ */
+export async function focusWorkspace(id: string): Promise<void> {
+  await runJson(['workspace', 'focus', id])
+}
+
+/**
+ * List herdr agents across all workspaces.
+ *
+ * Returns:
+ *     Promise<HerdrAgent[]>: Agents, or [] on any failure (herdr missing, bad JSON, nonzero exit).
+ */
+export async function listAgents(): Promise<HerdrAgent[]> {
+  const parsed = (await runJson(['agent', 'list'])) as { result?: { agents?: unknown } } | null
+  const agents = parsed?.result?.agents
+  return Array.isArray(agents) ? (agents as HerdrAgent[]) : []
+}
+
+/**
+ * Focus a herdr agent's terminal.
+ *
+ * Args:
+ *     target (string): Focusable target (terminal id) from listAgents.
+ *
+ * Returns:
+ *     Promise<void>: Resolves silently even on failure.
+ */
+export async function focusAgent(target: string): Promise<void> {
+  await runJson(['agent', 'focus', target])
+}
+
 /**
  * Mirror a classified agent state to the herdr pane hosting the session.
  *

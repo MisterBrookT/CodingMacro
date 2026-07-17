@@ -3,7 +3,7 @@
 // closures (write / focusSession / setLayer / thinking-level accessors) and the
 // per-button repeat handling.
 //
-// focus_session and layer are core-only actions (never reach a Harness).
+// focus_session, layer, and herdr_space are core-only actions (never reach a Harness).
 // workflow resolves its preset text through the config, then hands the harness
 // a plain prompt. Everything else goes straight to the harness's resolveAction;
 // a null result is a documented gap (e.g. Codex has no push-to-talk) and is
@@ -25,6 +25,8 @@ export interface DispatchDeps {
   focusSession: (index: number) => void
   /** Switch the active layer (bound `{ type: 'layer' }` action). */
   setLayer: (index: number) => void
+  /** Cycle the selected herdr workspace (bound `{ type: 'herdr_space' }` action). */
+  cycleHerdrSpace: () => void
 }
 
 /**
@@ -44,6 +46,9 @@ export function dispatchAction(action: Action, deps: DispatchDeps): void {
       return
     case 'layer':
       deps.setLayer(action.index)
+      return
+    case 'herdr_space':
+      deps.cycleHerdrSpace()
       return
     case 'workflow': {
       const text = deps.config.workflows[action.presetId]

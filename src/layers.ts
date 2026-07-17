@@ -90,6 +90,7 @@ const actionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('prompt'), text: z.string() }),
   z.object({ type: z.literal('focus_session'), index: z.number() }),
   z.object({ type: z.literal('layer'), index: z.number() }),
+  z.object({ type: z.literal('herdr_space') }),
   z.object({ type: z.literal('keys'), bytes: z.string() }),
 ])
 
@@ -150,6 +151,7 @@ export const DEFAULT_CONFIG: OpenMicroConfig = {
         lstick_down: { type: 'workflow', presetId: 'debug' },
         lstick_left: { type: 'workflow', presetId: 'refactor' },
         lstick_right: { type: 'workflow', presetId: 'write-tests' },
+        l2: { type: 'herdr_space' },
         rstick_cw: { type: 'thinking_depth', delta: 1 },
         rstick_ccw: { type: 'thinking_depth', delta: -1 },
         touchpad: TOUCHPAD_CYCLE,
