@@ -13,7 +13,13 @@ import { DS4_PIDS, DS4_VID, parseDs4Report } from './ds4-driver.js'
 import { GAMESIR_PIDS, GAMESIR_VID, parseGameSirReport } from './gamesir-driver.js'
 import { parseGenericReport } from './generic-driver.js'
 import { RawHidDriver } from './raw-hid-driver.js'
-import { parseXboxReport, XBOX_PIDS, XBOX_VID } from './xbox-driver.js'
+import {
+  parseXboxGipReport,
+  parseXboxReport,
+  XBOX_GIP_PIDS,
+  XBOX_PIDS,
+  XBOX_VID,
+} from './xbox-driver.js'
 import type { ControllerEvent } from '../types.js'
 
 export const DUALSENSE_VID = 0x054c
@@ -41,6 +47,12 @@ export function createDriver(): ControllerHAL | null {
   const xbox = devices.find((d) => d.vendorId === XBOX_VID && XBOX_PIDS.includes(d.productId))
   if (xbox?.path) {
     return new RawHidDriver('xbox', xbox.path, parseXboxReport)
+  }
+  const xboxGip = devices.find(
+    (d) => d.vendorId === XBOX_VID && XBOX_GIP_PIDS.includes(d.productId),
+  )
+  if (xboxGip?.path) {
+    return new RawHidDriver('xbox', xboxGip.path, parseXboxGipReport)
   }
   const gamesir = devices.find(
     (d) => d.vendorId === GAMESIR_VID && GAMESIR_PIDS.includes(d.productId),

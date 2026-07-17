@@ -3,7 +3,7 @@ import { Deduper } from '../src/controller/hal.js'
 import { parseDs4Report } from '../src/controller/ds4-driver.js'
 import { parseGameSirReport } from '../src/controller/gamesir-driver.js'
 import { normalizeGenericAxis, parseGenericReport } from '../src/controller/generic-driver.js'
-import { parseXboxReport } from '../src/controller/xbox-driver.js'
+import { parseXboxGipReport, parseXboxReport } from '../src/controller/xbox-driver.js'
 import type { ControllerEvent } from '../src/types.js'
 
 function buttons(events: ControllerEvent[]): Map<string, boolean> {
@@ -104,6 +104,67 @@ describe('parseXboxReport', () => {
 
   it('returns nothing for short reports', () => {
     expect(parseXboxReport(Buffer.alloc(8))).toEqual([])
+  })
+})
+
+describe('parseXboxGipReport', () => {
+  // Real frames captured from a wired Xbox One S (045e:02ea) on macOS.
+  const gip = (hex: string): Buffer => Buffer.from(hex, 'hex')
+
+  it('parses face and menu/view buttons from byte 4', () => {
+    const a = buttons(parseXboxGipReport(gip('2000e72c1000000000008002f6fc9ffbf400')))
+    expect(a.get('south')).toBe(true)
+    expect(a.get('east')).toBe(false)
+    expect(
+      buttons(parseXboxGipReport(gip('2000ea2c2000000000008002f6fc9ffb9b00'))).get('east'),
+    ).toBe(true)
+    expect(
+      buttons(parseXboxGipReport(gip('2000ec2c4000000000008002f6fc9ffb9b00'))).get('west'),
+    ).toBe(true)
+    expect(
+      buttons(parseXboxGipReport(gip('2000ee2c8000000000008002f6fc9ffb9b00'))).get('north'),
+    ).toBe(true)
+    expect(
+      buttons(parseXboxGipReport(gip('2000f42c0400000000008002f6fc9ffb9b00'))).get('menu'),
+    ).toBe(true)
+    expect(
+      buttons(parseXboxGipReport(gip('2000f62c0800000000008002f6fc9ffb9b00'))).get('view'),
+    ).toBe(true)
+  })
+
+  it('parses bumpers and dpad from byte 5', () => {
+    expect(buttons(parseXboxGipReport(gip('2000f02c0010000000008002f6fc9ffb9b00'))).get('l1')).toBe(
+      true,
+    )
+    expect(buttons(parseXboxGipReport(gip('2000f22c0020000000008002f6fc9ffb9b00'))).get('r1')).toBe(
+      true,
+    )
+    const d = buttons(parseXboxGipReport(gip('2000f22c0001000000008002f6fc9ffb9b00')))
+    expect(d.get('dpad_up')).toBe(true)
+    expect(d.get('dpad_down')).toBe(false)
+  })
+
+  it('parses triggers as uint16 LE at bytes 6-9', () => {
+    const full = parseXboxGipReport(gip('2000f92c0000ff0300008002f6fc9ffb9b00'))
+    expect(axes(full).get('l2')).toBe(1)
+    expect(buttons(full).get('l2')).toBe(true)
+    const right = parseXboxGipReport(gip('2000fe2c0000000028018002f6fc9ffb9b00'))
+    expect(axes(right).get('r2')).toBeCloseTo(296 / 1023, 3)
+    expect(buttons(right).get('r2')).toBe(true)
+  })
+
+  it('parses sticks as int16 LE at bytes 10-17', () => {
+    const data = gip('2000ff2c0000000000008002f6fc9ffb9b00')
+    data.writeInt16LE(-32768, 10)
+    data.writeInt16LE(32767, 16)
+    const a = axes(parseXboxGipReport(data))
+    expect(a.get('left_x')).toBe(-1)
+    expect(a.get('right_y')).toBe(1)
+  })
+
+  it('ignores short or non-input frames', () => {
+    expect(parseXboxGipReport(Buffer.alloc(8))).toEqual([])
+    expect(parseXboxGipReport(gip('0700e70201000000000000000000000000ff'))).toEqual([])
   })
 })
 
