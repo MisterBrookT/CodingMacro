@@ -9,7 +9,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { isOpenmicroHost, runAsClient } from './client.js'
+import { isOpenmicroHost, reportTerminalFocus, runAsClient } from './client.js'
 import { HidManager } from './controller/hid-manager.js'
 import { dispatchAction } from './dispatch.js'
 import type { DispatchDeps } from './dispatch.js'
@@ -122,6 +122,10 @@ const agent = new AgentPty(
     shutdown()
     process.exit(code)
   },
+  // Terminal focus changes (window switch, tmux/herdr pane click) go to the
+  // host — voice must disengage the moment its terminal is no longer active.
+  // The host posts to itself: one path for every wrapper.
+  (focused) => reportTerminalFocus(wrapperId, focused),
 )
 
 // Ctrl+C passthrough: forward the interrupt to the child so it decides how to
@@ -252,9 +256,21 @@ if (!isHost) {
     scheduleFeedback()
   }
 
-  setInterval(() => {
-    syncHerdrFocus().catch((err) => logger.warn('herdr focus sync failed', err))
-  }, HERDR_FOCUS_POLL_MS).unref?.()
+  // While dictation is live, a mouse pane change must cut voice within a beat,
+  // not after up to a second of transcribing into the pane the user left.
+  const HERDR_FOCUS_POLL_VOICE_MS = 250
+  const scheduleHerdrPoll = (ms: number): void => {
+    setTimeout(() => {
+      syncHerdrFocus()
+        .catch((err) => logger.warn('herdr focus sync failed', err))
+        .finally(() =>
+          scheduleHerdrPoll(
+            voiceSessionKey === null ? HERDR_FOCUS_POLL_MS : HERDR_FOCUS_POLL_VOICE_MS,
+          ),
+        )
+    }, ms).unref?.()
+  }
+  scheduleHerdrPoll(HERDR_FOCUS_POLL_MS)
 
   /** Change focus: index -1 cycles to the next tracked session, else jumps to a slot. */
   function focusSession(index: number): void {
@@ -338,7 +354,8 @@ if (!isHost) {
         agent.write(off.bytes)
       } else {
         const instanceId = server.instanceForSession(voiceSessionKey)
-        if (instanceId) server.sendKeysToInstance(instanceId, off.bytes)
+        if (!instanceId || !server.sendKeysToInstance(instanceId, off.bytes))
+          logger.warn(`voice stop not delivered (session ${voiceSessionKey})`)
       }
     }
     voiceSessionKey = null
@@ -361,6 +378,26 @@ if (!isHost) {
     }
     voiceSessionKey = voiceSessionKey === key ? null : key // same-pane toggle
   }
+
+  // Tap-mode dictation auto-submits its transcript on stop — the recording is
+  // over but no controller press told us, so the tracking goes stale. Sending
+  // the stale off-toggle later would land Space on an EMPTY prompt and start a
+  // fresh recording in a pane the user already left (the overlap bug). The
+  // UserPromptSubmit hook is the ground truth for that moment: drop tracking
+  // without sending anything.
+  server.on('prompt-submit', (e: { sessionId: string; hostOwned: boolean }) => {
+    if (voiceSessionKey === (e.hostOwned ? SELF_SESSION_KEY : e.sessionId)) voiceSessionKey = null
+  })
+
+  // Voice terminal no longer active (OS window switch, tmux/herdr pane click —
+  // works for plain multi-terminal setups, no herdr required): disengage
+  // dictation in it. Focus-in is ignored; only the loss matters for voice.
+  server.on('terminal-focus', (e: { wrapperId: string; focused: boolean }) => {
+    if (e.focused || voiceSessionKey === null) return
+    const owner =
+      voiceSessionKey === SELF_SESSION_KEY ? wrapperId : server.sessionOwners.get(voiceSessionKey)
+    if (owner === e.wrapperId) stopVoice()
+  })
 
   let lastAttentionId: string | null = null
   server.on('aggregate', (agg: Aggregate) => {
