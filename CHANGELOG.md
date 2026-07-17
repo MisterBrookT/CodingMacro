@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.11] - 2026-07-17
+
+### Fixed
+
+- Voice/keys input now follows the herdr agent cycle: with a herdr space selected, touchpad cycling focused the next agent in herdr but left input routing (`focusSessionId`) on the previously-focused session — possibly in another space. The host now tracks each session's herdr pane (from the `X-Herdr-Pane-Id` hook header) and retargets input to the session hosted in the newly-focused pane
+
 ## [0.1.10] - 2026-07-17
 
 ### Fixed
