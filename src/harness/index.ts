@@ -5,6 +5,7 @@
 
 import { claudeHarness } from './claude.js'
 import { codexHarness } from './codex.js'
+import { codexAppHarness } from './codex-app.js'
 import type { Harness } from './types.js'
 
 export type { Action, AgentKind, AgentState, Harness, InstallResult } from './types.js'
@@ -12,6 +13,7 @@ export type { Action, AgentKind, AgentState, Harness, InstallResult } from './ty
 const registry = new Map<string, Harness>([
   [claudeHarness.kind, claudeHarness],
   [codexHarness.kind, codexHarness],
+  [codexAppHarness.kind, codexAppHarness],
 ])
 
 /**

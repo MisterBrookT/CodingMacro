@@ -62,7 +62,9 @@ export function parseInvocation(args: string[]): ParsedInvocation {
 export const USAGE = `openmicro — drive an AI agent CLI with a game controller.
 
 Usage:
-  openmicro [claude|codex] [...agent args]   Wrap the agent CLI (default: claude)
+  openmicro [claude|codex|codex-app] [...agent args]
+                                             Wrap the agent CLI (default: claude);
+                                             codex-app drives the Codex desktop app
   openmicro doctor [--capture]               Diagnose your controller, write a report
                                              (--capture: record raw reports only,
                                              for pads the parsers misread)

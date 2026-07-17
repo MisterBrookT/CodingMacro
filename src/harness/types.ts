@@ -27,6 +27,8 @@ export interface InstallResult {
 export interface Harness {
   readonly kind: AgentKind
   readonly command: string
+  /** Absent = true. False = GUI harness: no pty is spawned; resolved bytes go to execute() instead of a pty write. */
+  readonly usesPty?: boolean
   buildArgs(userArgs: string[]): string[]
   installHooks(): InstallResult
   /** Hook event name + raw payload → state, null if not state-relevant. Error/complete are best-effort heuristics per harness. */
@@ -36,4 +38,6 @@ export interface Harness {
     action: Action,
     ctx: { thinkingLevel: number },
   ): { bytes: string; thinkingLevel?: number } | null
+  /** Side-effect runner for usesPty:false harnesses — the cli calls it with resolveAction's bytes in place of a pty write. */
+  execute?(bytes: string): void
 }

@@ -7,6 +7,7 @@
 // run as CLIENTS — their session still reports state via hooks, and the host
 // forwards terminal keystrokes to whichever session has focus.
 
+import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { isOpenmicroHost, reportTerminalFocus, runAsClient } from './client.js'
@@ -114,24 +115,67 @@ function shutdown(): void {
   }
 }
 
-const agent = new AgentPty(
-  harness.command,
-  harness.buildArgs(invocation.agentArgs),
-  wrapperId,
-  (code) => {
-    shutdown()
-    process.exit(code)
-  },
-  // Terminal focus changes (window switch, tmux/herdr pane click) go to the
-  // host — voice must disengage the moment its terminal is no longer active.
-  // The host posts to itself: one path for every wrapper.
-  (focused) => reportTerminalFocus(wrapperId, focused),
-)
+// GUI harnesses (usesPty: false) drive a desktop app instead of spawning a
+// CLI under a pty: controller bytes route to harness.execute, and the host
+// server keeps the event loop alive in place of a child process.
+const usesPty = harness.usesPty ?? true
+
+// GUI-mode terminal status. The terminal is ours here (no TUI passthrough),
+// so show live status: plain ANSI colors, no dependency. No-op for pty
+// harnesses — their terminal belongs to the wrapped TUI.
+const STATE_TINT: Record<string, number> = {
+  executing: 32, // green
+  waiting: 33, // yellow
+  complete: 36, // cyan
+  error: 31, // red
+  idle: 90, // grey
+}
+function guiStatus(msg: string, tint = 90): void {
+  if (!usesPty && process.stderr.isTTY) console.error(`\x1b[${tint}m●\x1b[0m ${msg}`)
+  else if (!usesPty) console.error(msg)
+}
+
+const agent: Pick<AgentPty, 'write' | 'dispose'> = usesPty
+  ? new AgentPty(
+      harness.command,
+      harness.buildArgs(invocation.agentArgs),
+      wrapperId,
+      (code) => {
+        shutdown()
+        process.exit(code)
+      },
+      // Terminal focus changes (window switch, tmux/herdr pane click) go to the
+      // host — voice must disengage the moment its terminal is no longer active.
+      // The host posts to itself: one path for every wrapper.
+      (focused) => reportTerminalFocus(wrapperId, focused),
+    )
+  : {
+      write: (bytes: string) => {
+        const sep = bytes.indexOf(':')
+        if (sep > 0) guiStatus(`→ ${bytes.slice(sep + 1) || bytes.slice(0, sep)}`, 35)
+        harness.execute?.(bytes)
+      },
+      dispose: () => {},
+    }
+
+if (!usesPty) {
+  // Launch/activate the target app the way pty harnesses launch their CLI.
+  execFile(harness.command, harness.buildArgs(invocation.agentArgs), () => {})
+  guiStatus(`openmicro ${harness.kind} started — waiting for a controller… (Ctrl+C to quit)`, 36)
+}
 
 // Ctrl+C passthrough: forward the interrupt to the child so it decides how to
 // handle it (in raw mode the terminal already routes ^C straight to the pty;
 // this covers a programmatic `kill -INT`). SIGTERM cleans up and exits.
-process.on('SIGINT', () => agent.write('\x03'))
+// GUI harnesses have no child to forward to: clean up and exit instead.
+process.on('SIGINT', () => {
+  if (usesPty) {
+    agent.write('\x03')
+  } else {
+    shutdown()
+    process.exit(130)
+  }
+})
 process.on('SIGTERM', () => {
   shutdown()
   process.exit(0)
@@ -139,6 +183,7 @@ process.on('SIGTERM', () => {
 
 if (!isHost) {
   // ── Client: another openmicro owns the controller + state aggregation. ──
+  guiStatus('another openmicro instance owns the controller — running as client', 33)
   if (await isOpenmicroHost()) {
     runAsClient(wrapperId, invocation.kind, (bytes) => agent.write(bytes)).catch((err) =>
       logger.warn('client stream failed', err),
@@ -177,7 +222,9 @@ if (!isHost) {
 
   /** Terminal writes go to the focused session's instance, else our own pty. */
   function writeToFocused(bytes: string): void {
-    if (herdrForeignFocus) return // typing into an invisible pane is worse than a no-op
+    // The foreign-pane guard protects terminal panes; a GUI harness targets
+    // the app itself, so pane focus must not gate its input.
+    if (herdrForeignFocus && usesPty) return // typing into an invisible pane is worse than a no-op
     const instanceId = focusSessionId ? server.instanceForSession(focusSessionId) : null
     if (!instanceId || !server.sendKeysToInstance(instanceId, bytes)) agent.write(bytes)
   }
@@ -379,7 +426,7 @@ if (!isHost) {
 
   /** Before a push_to_talk press: toggle dictation off wherever it was left on. */
   function retargetVoice(): void {
-    if (herdrForeignFocus) return // press is dropped by writeToFocused anyway
+    if (herdrForeignFocus && usesPty) return // press is dropped by writeToFocused anyway
     const key = focusKey()
     if (voiceSessionKey !== null && voiceSessionKey !== key) {
       stopVoice() // backstop — voiceFollowFocus should already have closed it
@@ -409,8 +456,22 @@ if (!isHost) {
     if (owner === e.wrapperId) stopVoice()
   })
 
+  // GUI mode: mirror agent-state changes to the terminal (LEDs may be the only
+  // other signal, and only when the app fires the shared lifecycle hooks).
+  let lastGuiStates = ''
+  function reportGuiStates(): void {
+    const states = server.tracker
+      .list()
+      .map((s) => s.state)
+      .join(', ')
+    if (!states || states === lastGuiStates) return
+    lastGuiStates = states
+    guiStatus(`agent: ${states}`, STATE_TINT[server.tracker.list()[0]?.state ?? 'idle'] ?? 90)
+  }
+
   let lastAttentionId: string | null = null
   server.on('aggregate', (agg: Aggregate) => {
+    reportGuiStates()
     const next = nextFocus(focusSessionId, lastAttentionId, agg)
     lastAttentionId = next.lastAttentionId
     // While herdr governs focus (space selected or foreign pane focused),
@@ -427,11 +488,13 @@ if (!isHost) {
     try {
       if (e.kind === 'connected') {
         logger.info(`Controller connected: ${e.controllerType}`)
+        guiStatus(`controller connected (${e.controllerType}) — buttons now drive the app`, 32)
         scheduleFeedback()
         return
       }
       if (e.kind === 'disconnected') {
         repeater.releaseAll()
+        guiStatus('controller disconnected — waiting…', 33)
         return
       }
       const action = router.route(e)

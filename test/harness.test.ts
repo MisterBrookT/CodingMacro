@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const execFile = vi.hoisted(() => vi.fn())
+vi.mock('node:child_process', () => ({ execFile }))
+
 import { claudeHarness } from '../src/harness/claude.js'
 import { codexHarness } from '../src/harness/codex.js'
+import { codexAppHarness } from '../src/harness/codex-app.js'
 import { harnessFor, registerHarness } from '../src/harness/index.js'
 import type { Harness } from '../src/harness/types.js'
 
@@ -8,6 +13,7 @@ describe('registry', () => {
   it('resolves the built-in harnesses', () => {
     expect(harnessFor('claude').kind).toBe('claude')
     expect(harnessFor('codex').kind).toBe('codex')
+    expect(harnessFor('codex-app').kind).toBe('codex-app')
   })
 
   it('throws a clear error listing known kinds on unknown lookup', () => {
@@ -111,5 +117,90 @@ describe('codex harness', () => {
     // documented gaps — no voice, no deterministic effort keystroke
     expect(codexHarness.resolveAction({ type: 'push_to_talk' }, ctx)).toBeNull()
     expect(codexHarness.resolveAction({ type: 'thinking_depth', delta: 1 }, ctx)).toBeNull()
+  })
+})
+
+describe('codex-app harness', () => {
+  const ctx = { thinkingLevel: 1 }
+
+  beforeEach(() => {
+    execFile.mockReset()
+  })
+
+  it('is a GUI harness (no pty)', () => {
+    expect(codexAppHarness.usesPty).toBe(false)
+  })
+
+  it('resolves actions to tagged open/osascript bytes', () => {
+    expect(codexAppHarness.resolveAction({ type: 'accept' }, ctx)).toEqual({
+      bytes: 'osascript:keystroke return',
+    })
+    expect(codexAppHarness.resolveAction({ type: 'push_to_talk' }, ctx)).toEqual({
+      bytes: 'osascript:keystroke "d" using {control down, shift down}',
+    })
+    expect(codexAppHarness.resolveAction({ type: 'new_chat' }, ctx)).toEqual({
+      bytes: 'open:codex://new',
+    })
+  })
+
+  it('URL-encodes prompt text into the deep link', () => {
+    expect(codexAppHarness.resolveAction({ type: 'prompt', text: 'fix a & b?' }, ctx)).toEqual({
+      bytes: 'open:codex://new?prompt=fix%20a%20%26%20b%3F',
+    })
+  })
+
+  it('maps reject to Escape and known key bytes to System Events equivalents', () => {
+    expect(codexAppHarness.resolveAction({ type: 'reject' }, ctx)).toEqual({
+      bytes: 'osascript:key code 53',
+    })
+    expect(codexAppHarness.resolveAction({ type: 'keys', bytes: '\x1b[A' }, ctx)).toEqual({
+      bytes: 'osascript:key code 126',
+    })
+    expect(codexAppHarness.resolveAction({ type: 'keys', bytes: '\x15' }, ctx)).toEqual({
+      bytes: 'osascript:keystroke "a" using command down\nkey code 51',
+    })
+  })
+
+  it('returns null for documented gaps and core-only actions', () => {
+    expect(codexAppHarness.resolveAction({ type: 'thinking_depth', delta: 1 }, ctx)).toBeNull()
+    expect(codexAppHarness.resolveAction({ type: 'keys', bytes: '\x07' }, ctx)).toBeNull()
+    expect(codexAppHarness.resolveAction({ type: 'workflow', presetId: 'x' }, ctx)).toBeNull()
+    expect(codexAppHarness.resolveAction({ type: 'focus_session', index: 0 }, ctx)).toBeNull()
+    expect(codexAppHarness.resolveAction({ type: 'layer', index: 1 }, ctx)).toBeNull()
+  })
+
+  it('delegates hook-event mapping to the codex harness', () => {
+    for (const event of ['UserPromptSubmit', 'PermissionRequest', 'PostToolUse', 'Stop']) {
+      expect(codexAppHarness.stateForHookEvent(event, {})).toBe(
+        codexHarness.stateForHookEvent(event, {}),
+      )
+    }
+    expect(codexAppHarness.stateForHookEvent('WeirdFutureEvent', {})).toBeNull()
+  })
+
+  it('executes open: bytes via execFile with an arg array', () => {
+    codexAppHarness.execute?.('open:codex://new')
+    expect(execFile).toHaveBeenCalledWith('open', ['codex://new'], expect.any(Function))
+  })
+
+  it('executes osascript: bytes as activate + System Events keystroke', () => {
+    codexAppHarness.execute?.('osascript:keystroke return')
+    expect(execFile).toHaveBeenCalledWith(
+      'osascript',
+      [
+        '-e',
+        'tell application "Codex" to activate',
+        '-e',
+        'delay 0.15',
+        '-e',
+        'tell application "System Events" to keystroke return',
+      ],
+      expect.any(Function),
+    )
+  })
+
+  it('ignores untagged bytes', () => {
+    codexAppHarness.execute?.('\x03')
+    expect(execFile).not.toHaveBeenCalled()
   })
 })

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.0] - 2026-07-17
+
+### Added
+
+- `openmicro codex-app`: drive the Codex macOS desktop app — the Codex Micro's own companion app — straight from a game controller. Deep links (`codex://new?prompt=…`) for prompt/new-chat, System Events keystrokes for accept (Enter) and dictation (Ctrl+Shift+D), and LED agent-state via the shared `~/.codex` lifecycle hooks.
+- GUI mode launches the app at startup and prints live colored terminal status: controller connect/disconnect, dispatched actions, and agent-state changes.
+- `Harness` interface: optional `usesPty`/`execute` members let third-party harnesses target GUI apps instead of pty-wrapped CLIs.
+
 ## [0.2.2] - 2026-07-17
 
 ### Fixed

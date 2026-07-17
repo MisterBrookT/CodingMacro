@@ -334,6 +334,32 @@ describe('HostServer', () => {
     }
   })
 
+  it('attributes header-less hooks to the host wrapper when the host harness is GUI', async () => {
+    // The Codex desktop app has no OPENMICRO_INSTANCE_ID env, so its hook
+    // curls send an empty ownership header. A usesPty:false host adopts them;
+    // a CLI host (previous test's scoped server) keeps ignoring them.
+    const gui = new HostServer(harnessFor('codex-app'), 'gui-host')
+    await gui.listen(0)
+    const guiBase = `http://127.0.0.1:${gui.boundPort}`
+    const aggregates: Aggregate[] = []
+    gui.on('aggregate', (a: Aggregate) => aggregates.push(a))
+    try {
+      await fetch(`${guiBase}/om-hook/UserPromptSubmit`, {
+        method: 'POST',
+        headers: { 'X-Openmicro-Instance-Id': '' }, // empty header, same as missing
+        body: JSON.stringify({ session_id: 'app-sess' }),
+      })
+      expect(aggregates.at(-1)).toEqual({
+        playing: true,
+        focusSessionId: null,
+        focusIsAttention: false,
+      })
+      expect(gui.sessionOwners.get('app-sess')).toBe('gui-host')
+    } finally {
+      gui.close()
+    }
+  })
+
   it('ignores header-less hook events from sessions openmicro never wrapped', async () => {
     // Global hooks fire from every agent session on the machine. An unwrapped
     // session has no OPENMICRO_INSTANCE_ID, so its hooks carry no ownership
