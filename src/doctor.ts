@@ -346,15 +346,23 @@ function markdownSummary(report: DoctorReport): string {
 /**
  * Run the doctor: detect, walk the checklist, write the report/fixture file,
  * and print a paste-ready markdown block.
+ *
+ * Args:
+ *     opts.capture (boolean): force capture-only mode — record raw idle/pressed report pairs without any parser. For pads a parser claims but misreads (e.g. garbage passes from idle reports).
  */
-export async function runDoctor(): Promise<void> {
+export async function runDoctor(opts: { capture?: boolean } = {}): Promise<void> {
   const rl = createInterface({ input: process.stdin, output: process.stdout })
   try {
-    const driver = createDriver()
+    // --capture skips the drivers entirely: a misreading parser emits garbage
+    // events that make the interactive checklist lie, so go straight to raw
+    // idle/pressed byte capture on the first gamepad-looking HID device.
+    const driver = opts.capture ? null : createDriver()
 
-    // ── Unknown controller: no driver claimed it → capture-only fallback. ──
+    // ── Unknown controller (or --capture): raw capture-only fallback. ──
     if (!driver) {
-      const candidate = devices().find((d) => d.usagePage === 0x01 && d.path)
+      const candidate = devices().find(
+        (d) => d.usagePage === 0x01 && (d.usage === 0x04 || d.usage === 0x05) && d.path,
+      )
       if (!candidate?.path) {
         console.error('No controller detected. Plug one in and rerun `openmicro doctor`.')
         return

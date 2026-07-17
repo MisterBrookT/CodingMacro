@@ -68,7 +68,7 @@ if (invocation.version) {
 // + readline machinery never loads for a normal wrap.
 if (invocation.doctor) {
   const { runDoctor } = await import('./doctor.js')
-  await runDoctor()
+  await runDoctor({ capture: invocation.doctorCapture })
   process.exit(0)
 }
 

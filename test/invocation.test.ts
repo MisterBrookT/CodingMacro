@@ -12,6 +12,7 @@ describe('parseInvocation', () => {
       help: false,
       version: false,
       doctor: false,
+      doctorCapture: false,
     })
   })
 
@@ -22,6 +23,7 @@ describe('parseInvocation', () => {
       help: false,
       version: false,
       doctor: false,
+      doctorCapture: false,
     })
   })
 
@@ -32,6 +34,7 @@ describe('parseInvocation', () => {
       help: false,
       version: false,
       doctor: false,
+      doctorCapture: false,
     })
   })
 
@@ -42,6 +45,7 @@ describe('parseInvocation', () => {
       help: false,
       version: false,
       doctor: false,
+      doctorCapture: false,
     })
   })
 
@@ -57,7 +61,14 @@ describe('parseInvocation', () => {
       help: false,
       version: false,
       doctor: true,
+      doctorCapture: false,
     })
+  })
+
+  it('flags doctor --capture', () => {
+    const parsed = parseInvocation(['doctor', '--capture'])
+    expect(parsed.doctor).toBe(true)
+    expect(parsed.doctorCapture).toBe(true)
   })
 })
 

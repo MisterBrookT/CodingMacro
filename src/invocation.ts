@@ -16,6 +16,8 @@ export interface ParsedInvocation {
   version: boolean
   /** True when the `doctor` subcommand was requested (cli runs the diagnostic and exits). */
   doctor: boolean
+  /** True when `doctor --capture` was requested (force raw capture-only mode). */
+  doctorCapture: boolean
 }
 
 const DEFAULT_KIND = 'claude'
@@ -30,7 +32,14 @@ const DEFAULT_KIND = 'claude'
  *     ParsedInvocation: kind + forwarded args + help flag.
  */
 export function parseInvocation(args: string[]): ParsedInvocation {
-  const base = { kind: DEFAULT_KIND, agentArgs: [], help: false, version: false, doctor: false }
+  const base = {
+    kind: DEFAULT_KIND,
+    agentArgs: [],
+    help: false,
+    version: false,
+    doctor: false,
+    doctorCapture: false,
+  }
   if (args[0] === '--help' || args[0] === '-h') {
     return { ...base, help: true }
   }
@@ -40,7 +49,7 @@ export function parseInvocation(args: string[]): ParsedInvocation {
     return { ...base, version: true }
   }
   if (args[0] === 'doctor') {
-    return { ...base, doctor: true }
+    return { ...base, doctor: true, doctorCapture: args.includes('--capture') }
   }
   // A leading bare word names the harness; a leading flag (or nothing) means
   // "default harness, these are its args".
@@ -54,7 +63,9 @@ export const USAGE = `openmicro — drive an AI agent CLI with a game controller
 
 Usage:
   openmicro [claude|codex] [...agent args]   Wrap the agent CLI (default: claude)
-  openmicro doctor                           Diagnose your controller, write a report
+  openmicro doctor [--capture]               Diagnose your controller, write a report
+                                             (--capture: record raw reports only,
+                                             for pads the parsers misread)
   openmicro --version                        Show openmicro's version
   openmicro --help                           Show this message
 
