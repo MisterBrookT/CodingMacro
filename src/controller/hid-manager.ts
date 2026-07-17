@@ -10,6 +10,7 @@ import type { ControllerHAL } from './hal.js'
 import type { ControllerOutput } from './output.js'
 import { DualSenseDriver } from './dualsense-driver.js'
 import { DS4_PIDS, DS4_VID, parseDs4Report } from './ds4-driver.js'
+import { GAMESIR_PIDS, GAMESIR_VID, parseGameSirReport } from './gamesir-driver.js'
 import { parseGenericReport } from './generic-driver.js'
 import { RawHidDriver } from './raw-hid-driver.js'
 import { parseXboxReport, XBOX_PIDS, XBOX_VID } from './xbox-driver.js'
@@ -20,7 +21,7 @@ export const DUALSENSE_PIDS = [0x0ce6, 0x0df2] // DualSense, DualSense Edge
 
 const RECONNECT_POLL_MS = 2000
 
-/** Detect the best matching device: DualSense > DS4 > Xbox > generic gamepad. */
+/** Detect the best matching device: DualSense > DS4 > Xbox > GameSir > generic gamepad. */
 export function createDriver(): ControllerHAL | null {
   let devices: Device[]
   try {
@@ -40,6 +41,12 @@ export function createDriver(): ControllerHAL | null {
   const xbox = devices.find((d) => d.vendorId === XBOX_VID && XBOX_PIDS.includes(d.productId))
   if (xbox?.path) {
     return new RawHidDriver('xbox', xbox.path, parseXboxReport)
+  }
+  const gamesir = devices.find(
+    (d) => d.vendorId === GAMESIR_VID && GAMESIR_PIDS.includes(d.productId),
+  )
+  if (gamesir?.path) {
+    return new RawHidDriver('gamesir', gamesir.path, parseGameSirReport)
   }
   const generic = devices.find(
     (d) => d.usagePage === 0x01 && (d.usage === 0x04 || d.usage === 0x05) && d.path,

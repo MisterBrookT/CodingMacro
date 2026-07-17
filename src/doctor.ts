@@ -21,6 +21,7 @@ import type { Device } from 'node-hid'
 import { createDriver, DUALSENSE_PIDS, DUALSENSE_VID } from './controller/hid-manager.js'
 import type { ControllerHAL } from './controller/hal.js'
 import { DS4_PIDS, DS4_VID } from './controller/ds4-driver.js'
+import { GAMESIR_PIDS, GAMESIR_VID } from './controller/gamesir-driver.js'
 import { XBOX_PIDS, XBOX_VID } from './controller/xbox-driver.js'
 import type { AxisId, ButtonId, ControllerEvent, ControllerType } from './types.js'
 
@@ -131,6 +132,9 @@ function findDevice(type: ControllerType): Device | undefined {
   }
   if (type === 'xbox') {
     return all.find((d) => d.vendorId === XBOX_VID && XBOX_PIDS.includes(d.productId))
+  }
+  if (type === 'gamesir') {
+    return all.find((d) => d.vendorId === GAMESIR_VID && GAMESIR_PIDS.includes(d.productId))
   }
   return all.find((d) => d.usagePage === 0x01 && (d.usage === 0x04 || d.usage === 0x05) && d.path)
 }

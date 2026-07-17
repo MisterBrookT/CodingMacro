@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Deduper } from '../src/controller/hal.js'
 import { parseDs4Report } from '../src/controller/ds4-driver.js'
+import { parseGameSirReport } from '../src/controller/gamesir-driver.js'
 import { normalizeGenericAxis, parseGenericReport } from '../src/controller/generic-driver.js'
 import { parseXboxReport } from '../src/controller/xbox-driver.js'
 import type { ControllerEvent } from '../src/types.js'
@@ -16,6 +17,43 @@ function axes(events: ControllerEvent[]): Map<string, number> {
   for (const e of events) if (e.kind === 'axis') map.set(e.axis, e.value)
   return map
 }
+
+describe('parseGameSirReport', () => {
+  // Idle Bluetooth report from the 3537-1022-bluetooth.json fixture.
+  function report(overrides: Record<number, number> = {}): Buffer {
+    const data = Buffer.from('07808080800f0000000000', 'hex')
+    for (const [index, value] of Object.entries(overrides)) data[Number(index)] = value
+    return data
+  }
+
+  it('ignores reports with the wrong ID or a short length', () => {
+    expect(parseGameSirReport(report({ 0: 0x01 }))).toEqual([])
+    expect(parseGameSirReport(Buffer.from('0780', 'hex'))).toEqual([])
+  })
+
+  it('reports no presses and centered axes at idle', () => {
+    const events = parseGameSirReport(report())
+    expect([...buttons(events).values()].every((pressed) => !pressed)).toBe(true)
+    expect(axes(events).get('left_x')).toBe(0)
+    expect(axes(events).get('l2')).toBe(0)
+  })
+
+  it('parses the d-pad hat including diagonals and neutral', () => {
+    expect(buttons(parseGameSirReport(report({ 5: 0 }))).get('dpad_up')).toBe(true)
+    expect(buttons(parseGameSirReport(report({ 5: 1 }))).get('dpad_up')).toBe(true)
+    expect(buttons(parseGameSirReport(report({ 5: 1 }))).get('dpad_right')).toBe(true)
+    expect(buttons(parseGameSirReport(report({ 5: 6 }))).get('dpad_left')).toBe(true)
+    expect(buttons(parseGameSirReport(report({ 5: 0x0f }))).get('dpad_up')).toBe(false)
+  })
+
+  it('parses sticks and trigger analogs', () => {
+    const a = axes(parseGameSirReport(report({ 1: 0xff, 2: 0x00, 8: 0xff, 9: 0x80 })))
+    expect(a.get('left_x')).toBeCloseTo(0.99, 2)
+    expect(a.get('left_y')).toBe(-1)
+    expect(a.get('r2')).toBe(1)
+    expect(a.get('l2')).toBeCloseTo(0.5, 2)
+  })
+})
 
 describe('parseXboxReport', () => {
   function report(overrides: Record<number, number> = {}): Buffer {

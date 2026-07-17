@@ -12,6 +12,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { parseDs4Report } from '../src/controller/ds4-driver.js'
+import { parseGameSirReport } from '../src/controller/gamesir-driver.js'
 import { parseGenericReport } from '../src/controller/generic-driver.js'
 import { parseXboxReport } from '../src/controller/xbox-driver.js'
 import type { ControllerEvent } from '../src/types.js'
@@ -37,6 +38,7 @@ interface ReplayFixture {
 const PARSERS: Record<string, (data: Buffer) => ControllerEvent[]> = {
   xbox: parseXboxReport,
   ds4: parseDs4Report,
+  gamesir: parseGameSirReport,
   generic: parseGenericReport,
 }
 
