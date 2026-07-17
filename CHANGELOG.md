@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.0] - 2026-07-17
+
+### Added
+
+- GameSir-G7 Pro Bluetooth support: a dedicated `gamesir` driver, detected by VID/PID ahead of the generic fallback that misread the pad's reports (byte 0 is the report ID `0x07`, which decoded as phantom face-button presses). All 17 controls and full axis ranges pass the doctor; the certified fixture ships in `test/fixtures/controllers/` and CI replays every captured press
+- The G7 Pro's home button maps to `touchpad` (session cycling by default) — the pad's M button is firmware-consumed and never reaches the host
+- `openmicro doctor --capture` forces raw capture-only mode, recording idle/pressed HID report pairs per control without any parser — the data needed to add a driver for a pad the parsers misread
+
+### Fixed
+
+- Doctor's capture-only device search now targets gamepad/joystick HID usages, so it can't grab a mouse or keyboard
+
 ## [0.1.18] - 2026-07-17
 
 ### Fixed
