@@ -226,7 +226,14 @@ export class HostServer extends EventEmitter {
     // OPENMICRO_INSTANCE_ID env, so its hooks arrive with an empty/missing
     // header — attribute them to the host wrapper so state reaches the
     // tracker. usesPty defaults true, so this is a no-op for CLI harnesses.
-    if (!wrapperId && this.hostWrapperId && this.hostHarness.usesPty === false)
+    // Claude-origin hooks also arrive header-less (any unwrapped Claude Code
+    // session posts here); their transcript_path lives under ~/.claude — skip
+    // them, or foreign sessions become phantom "agents" that steal focus.
+    const claudeOrigin =
+      typeof (payload as { transcript_path?: unknown })?.transcript_path === 'string' &&
+      ((payload as { transcript_path: string }).transcript_path.includes('/.claude/') ||
+        (payload as { transcript_path: string }).transcript_path.includes('/.config/claude/'))
+    if (!wrapperId && !claudeOrigin && this.hostWrapperId && this.hostHarness.usesPty === false)
       wrapperId = this.hostWrapperId
 
     // Only sessions owned by an active wrapper (the host's own agent or a
