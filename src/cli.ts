@@ -26,6 +26,7 @@ import { HOST_PORT } from './ports.js'
 import { AgentPty } from './pty.js'
 import { LayerRouter } from './router.js'
 import { HostServer } from './server.js'
+import { nextFocus } from './state.js'
 import type { Aggregate } from './state.js'
 import type { ButtonId, ControllerEvent } from './types.js'
 
@@ -201,16 +202,11 @@ if (!isHost) {
     setLayer: (index) => router.setLayer(index),
   }
 
-  let lastAutoFocusId: string | null = null
+  let lastAttentionId: string | null = null
   server.on('aggregate', (agg: Aggregate) => {
-    // A session newly demanding attention pulls focus once; after that the
-    // user's manual (touchpad) pick wins. Re-asserting the same stale
-    // attention id on every hook event would undo the touchpad press.
-    // When nobody needs attention, keep routing to the session that last did.
-    if (agg.focusSessionId && agg.focusSessionId !== lastAutoFocusId) {
-      focusSessionId = agg.focusSessionId
-    }
-    lastAutoFocusId = agg.focusSessionId
+    const next = nextFocus(focusSessionId, lastAttentionId, agg)
+    focusSessionId = next.focus
+    lastAttentionId = next.lastAttentionId
     scheduleFeedback()
   })
 

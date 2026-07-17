@@ -67,19 +67,35 @@ describe('HostServer', () => {
     server.on('aggregate', (a: Aggregate) => aggregates.push(a))
 
     await postHook('UserPromptSubmit', 's1') // → executing
-    expect(aggregates.at(-1)).toEqual({ playing: true, focusSessionId: null })
+    expect(aggregates.at(-1)).toEqual({
+      playing: true,
+      focusSessionId: null,
+      focusIsAttention: false,
+    })
 
     await postHook('PreToolUse', 's1') // AskUserQuestion → waiting
-    expect(aggregates.at(-1)).toEqual({ playing: false, focusSessionId: 's1' })
+    expect(aggregates.at(-1)).toEqual({
+      playing: false,
+      focusSessionId: 's1',
+      focusIsAttention: true,
+    })
   })
 
   it('removes a session on SessionEnd so a dead waiter cannot pin state', async () => {
     const aggregates: Aggregate[] = []
     server.on('aggregate', (a: Aggregate) => aggregates.push(a))
     await postHook('PreToolUse', 's1') // waiting → pauses on s1
-    expect(aggregates.at(-1)).toEqual({ playing: false, focusSessionId: 's1' })
+    expect(aggregates.at(-1)).toEqual({
+      playing: false,
+      focusSessionId: 's1',
+      focusIsAttention: true,
+    })
     await postHook('SessionEnd', 's1')
-    expect(aggregates.at(-1)).toEqual({ playing: false, focusSessionId: null })
+    expect(aggregates.at(-1)).toEqual({
+      playing: false,
+      focusSessionId: null,
+      focusIsAttention: false,
+    })
   })
 
   it('forwards keystrokes to the instance that owns the session', async () => {
@@ -125,7 +141,11 @@ describe('HostServer', () => {
         headers: { 'X-Openmicro-Instance-Id': 'codex-wrap' },
         body: JSON.stringify({ session_id: 'codex-sess', cwd: '/tmp/codex-proj' }),
       })
-      expect(aggregates.at(-1)).toEqual({ playing: false, focusSessionId: 'codex-sess' })
+      expect(aggregates.at(-1)).toEqual({
+        playing: false,
+        focusSessionId: 'codex-sess',
+        focusIsAttention: true,
+      })
     } finally {
       scoped.close()
     }
@@ -152,7 +172,11 @@ describe('HostServer', () => {
         body: JSON.stringify({ session_id: 'host-wrapper', cwd: '/tmp/shared' }),
       })
       // Stop → complete (transient); focusOnStop lets it hold focus, paused.
-      expect(aggregates.at(-1)).toEqual({ playing: false, focusSessionId: 'host-wrapper' })
+      expect(aggregates.at(-1)).toEqual({
+        playing: false,
+        focusSessionId: 'host-wrapper',
+        focusIsAttention: false,
+      })
       await post('unknown-wrapper')
       expect(aggregates).toHaveLength(2)
       expect(owned.sessionOwners.get('host-wrapper')).toBe('host-wrapper')
@@ -226,11 +250,19 @@ describe('HostServer', () => {
 
     try {
       await post('UserPromptSubmit', { session_id: 'ours', cwd: '/tmp/host' }, 'host-wrapper')
-      expect(aggregates.at(-1)).toEqual({ playing: true, focusSessionId: null })
+      expect(aggregates.at(-1)).toEqual({
+        playing: true,
+        focusSessionId: null,
+        focusIsAttention: false,
+      })
 
       // Unwrapped observer in the same cwd goes 'waiting' — must not pin state.
       await post('Notification', { session_id: 'observer', cwd: '/tmp/host' })
-      expect(aggregates.at(-1)).toEqual({ playing: true, focusSessionId: null })
+      expect(aggregates.at(-1)).toEqual({
+        playing: true,
+        focusSessionId: null,
+        focusIsAttention: false,
+      })
       expect(scoped.sessionOwners.has('observer')).toBe(false)
     } finally {
       scoped.close()

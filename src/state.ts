@@ -16,6 +16,8 @@ export interface Aggregate {
   playing: boolean
   /** Session that most recently needs attention / stopped — terminal input routes here. */
   focusSessionId: string | null
+  /** True when focusSessionId demands attention (waiting/error) — only then may it steal focus from a manual pick. */
+  focusIsAttention: boolean
 }
 
 export interface SessionApplyOptions {
@@ -35,6 +37,31 @@ export interface SessionTrackerOptions {
   now?: () => number
   /** Called when a background decay flips a `complete` session to `idle`. Wiring this enables the decay timer. */
   onChange?: () => void
+}
+
+/**
+ * Decide the controller's focused session after an aggregate change.
+ *
+ * A session newly demanding attention (waiting/error) pulls focus once; after that the user's manual (touchpad) pick wins — re-asserting the same stale attention id on every hook event would undo the touchpad press. Resting focus (a session that merely finished) never steals; it only seeds focus while no session was ever picked.
+ *
+ * Args:
+ *     current (string | null): Currently focused session id (manual or auto), null = none yet.
+ *     lastAttentionId (string | null): Attention id seen on the previous aggregate.
+ *     agg (Aggregate): Fresh aggregate from SessionTracker.
+ *
+ * Returns:
+ *     { focus: string | null; lastAttentionId: string | null }: New focus + attention id to remember.
+ */
+export function nextFocus(
+  current: string | null,
+  lastAttentionId: string | null,
+  agg: Aggregate,
+): { focus: string | null; lastAttentionId: string | null } {
+  const attentionId = agg.focusIsAttention ? agg.focusSessionId : null
+  let focus = current
+  if (attentionId && attentionId !== lastAttentionId) focus = attentionId
+  else if (current === null && agg.focusSessionId) focus = agg.focusSessionId
+  return { focus, lastAttentionId: attentionId }
 }
 
 export class SessionTracker {
@@ -152,6 +179,7 @@ export class SessionTracker {
     return {
       playing: !attention && anyExecuting,
       focusSessionId: attention?.id ?? (anyExecuting ? null : resting?.id) ?? null,
+      focusIsAttention: attention !== null,
     }
   }
 }
