@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.2] - 2026-07-17
+
+### Fixed
+
+- Wired Xbox One controllers (`045e:02ea`, Xbox One S) now work over USB. These pads speak the GIP protocol on the wire, so they fell through to the generic HID driver whose byte layout doesn't match and every button failed. A new `parseXboxGipReport` parses the GIP input frame (buttons at bytes 4-5, 10-bit triggers at 6-9, int16 sticks at 10-17), verified against a live capture
+
 ## [0.2.1] - 2026-07-17
 
 ### Fixed
