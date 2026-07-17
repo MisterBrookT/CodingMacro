@@ -180,6 +180,22 @@ export class HostServer extends EventEmitter {
       return
     }
 
+    // Terminal window/pane focus changes, observed by each wrapper's pty from
+    // mode-1004 focus reporting. The host uses focus-out to disengage voice.
+    if (req.method === 'POST' && pathname === '/focus') {
+      const body = await readBody(req)
+      try {
+        const { wrapperId, focused } = JSON.parse(body) as { wrapperId: string; focused: boolean }
+        if (typeof wrapperId === 'string' && typeof focused === 'boolean')
+          this.emit('terminal-focus', { wrapperId, focused })
+      } catch {
+        // malformed focus report — ignore
+      }
+      res.writeHead(200)
+      res.end()
+      return
+    }
+
     if (pathname.startsWith('/instance/')) {
       this.handleInstanceStream(pathname.slice('/instance/'.length), req, res)
       return
@@ -225,6 +241,12 @@ export class HostServer extends EventEmitter {
     const herdrPaneId = Array.isArray(paneHeader) ? paneHeader[0] : paneHeader
 
     if (trusted) {
+      // Ground truth that dictation ended without a controller press: tap-mode
+      // auto-submit fires this hook the instant the transcript is sent. The
+      // host uses it to drop stale voice tracking (a stale Space toggle sent
+      // into the now-empty prompt would START a new recording).
+      if (event === 'UserPromptSubmit')
+        this.emit('prompt-submit', { sessionId, hostOwned: wrapperId === this.hostWrapperId })
       let changed = false
       if (event === 'SessionEnd') {
         // Harnesses classify SessionEnd as null (caller removes) — a dead waiter

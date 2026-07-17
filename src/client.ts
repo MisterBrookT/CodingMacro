@@ -17,6 +17,26 @@ export async function isOpenmicroHost(): Promise<boolean> {
 }
 
 /**
+ * Report this wrapper's terminal focus change to the host (fire-and-forget).
+ *
+ * Args:
+ *     wrapperId (string): This instance's OPENMICRO_INSTANCE_ID.
+ *     focused (boolean): True on focus-in (ESC[I), false on focus-out (ESC[O).
+ *
+ * Returns:
+ *     None.
+ */
+export function reportTerminalFocus(wrapperId: string, focused: boolean): void {
+  fetch(`${HOST_URL}/focus`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wrapperId, focused }),
+  }).catch(() => {
+    // host gone or not openmicro — focus reports are best-effort
+  })
+}
+
+/**
  * Register with the host and stream forwarded keystrokes into `write`.
  *
  * Args:

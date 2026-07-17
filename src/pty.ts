@@ -60,12 +60,14 @@ export function spawnAgentProcess(
 
 export class AgentPty {
   private proc: pty.IPty
+  private focusReporting = false
 
   constructor(
     command: string,
     args: string[],
     wrapperId: string | undefined,
     onExit: (code: number) => void,
+    onFocusChange?: (focused: boolean) => void,
   ) {
     fixSpawnHelperPermissions()
     this.proc = spawnAgentProcess(pty.spawn, command, args, wrapperId)
@@ -74,7 +76,23 @@ export class AgentPty {
     this.proc.onExit(({ exitCode }) => onExit(exitCode))
 
     if (process.stdin.isTTY) process.stdin.setRawMode(true)
-    process.stdin.on('data', (data: Buffer) => this.proc.write(data.toString('utf8')))
+    // Terminal focus reporting (mode 1004): the terminal sends ESC[I / ESC[O
+    // on window/pane focus changes. We observe them here and still pass them
+    // through to the wrapped agent, which understands the same events.
+    if (onFocusChange && process.stdout.isTTY) {
+      process.stdout.write('\x1b[?1004h')
+      this.focusReporting = true
+    }
+    process.stdin.on('data', (data: Buffer) => {
+      const bytes = data.toString('utf8')
+      if (onFocusChange) {
+        // ponytail: per-chunk match — an event split across reads is missed;
+        // buffer across chunks if that ever shows up in practice.
+        if (bytes.includes('\x1b[I')) onFocusChange(true)
+        else if (bytes.includes('\x1b[O')) onFocusChange(false)
+      }
+      this.proc.write(bytes)
+    })
 
     process.stdout.on('resize', () => {
       try {
@@ -90,6 +108,7 @@ export class AgentPty {
   }
 
   dispose(): void {
+    if (this.focusReporting) process.stdout.write('\x1b[?1004l')
     if (process.stdin.isTTY) process.stdin.setRawMode(false)
     process.stdin.pause()
     try {

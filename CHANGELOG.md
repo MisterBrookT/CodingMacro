@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.17] - 2026-07-17
+
+### Fixed
+
+- Killed the remaining voice-overlap path: when tap-mode dictation auto-submitted its transcript, the host's tracking went stale, and the next focus change fired the stale Space "off" toggle into a now-empty prompt — starting a fresh recording in the pane the user had left. The `UserPromptSubmit` hook now clears voice tracking at exactly that moment, so no stale toggle is ever sent
+- Voice now disengages when its terminal stops being active, in any multi-terminal setup — no herdr required. Each wrapper observes terminal focus reporting (mode 1004 `ESC[I`/`ESC[O`) on its own pty and reports focus loss to the host, which stops dictation in that terminal immediately
+- While dictation is live, herdr focus is polled every 250ms instead of every 1s, so a mouse pane change cuts voice within a beat instead of transcribing up to a second into the old pane
+- A voice stop that cannot be delivered to its pane is now logged instead of silently dropped
+
 ## [0.1.16] - 2026-07-17
 
 ### Fixed

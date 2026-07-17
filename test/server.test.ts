@@ -192,6 +192,52 @@ describe('HostServer', () => {
     }
   })
 
+  it('emits prompt-submit with host ownership so stale voice tracking can be dropped', async () => {
+    const owned = new HostServer(claude, 'host-wrapper')
+    await owned.listen(0)
+    const ownedBase = `http://127.0.0.1:${owned.boundPort}`
+    const submits: Array<{ sessionId: string; hostOwned: boolean }> = []
+    owned.on('prompt-submit', (e: { sessionId: string; hostOwned: boolean }) => submits.push(e))
+    const post = (event: string, sessionId: string, wrapperId: string) =>
+      fetch(`${ownedBase}/om-hook/${event}`, {
+        method: 'POST',
+        headers: { 'X-Openmicro-Instance-Id': wrapperId },
+        body: JSON.stringify({ session_id: sessionId }),
+      })
+    try {
+      // Client wrappers must register before their hooks are trusted.
+      const reg = await fetch(`${ownedBase}/register`, {
+        method: 'POST',
+        body: JSON.stringify({ cwd: '/tmp/shared', wrapperId: 'client-wrapper', kind: 'claude' }),
+      })
+      const { instanceId } = (await reg.json()) as { instanceId: string }
+      const stream = await fetch(`${ownedBase}/instance/${instanceId}`)
+
+      await post('UserPromptSubmit', 'host-sess', 'host-wrapper')
+      await post('UserPromptSubmit', 'client-sess', 'client-wrapper')
+      await post('Stop', 'client-sess', 'client-wrapper') // other events must not emit
+      await post('UserPromptSubmit', 'foreign-sess', 'unknown-wrapper') // untrusted
+      expect(submits).toEqual([
+        { sessionId: 'host-sess', hostOwned: true },
+        { sessionId: 'client-sess', hostOwned: false },
+      ])
+      await stream.body?.cancel()
+    } finally {
+      owned.close()
+    }
+  })
+
+  it('emits terminal-focus from /focus posts and ignores malformed bodies', async () => {
+    const events: Array<{ wrapperId: string; focused: boolean }> = []
+    server.on('terminal-focus', (e: { wrapperId: string; focused: boolean }) => events.push(e))
+    const post = (body: string) => fetch(`${base}/focus`, { method: 'POST', body })
+
+    await post(JSON.stringify({ wrapperId: 'w1', focused: false }))
+    await post('not json')
+    await post(JSON.stringify({ wrapperId: 42, focused: 'yes' }))
+    expect(events).toEqual([{ wrapperId: 'w1', focused: false }])
+  })
+
   it('routes same-cwd clients by wrapper ownership', async () => {
     const register = async (wrapperId: string) => {
       const reg = await fetch(`${base}/register`, {
