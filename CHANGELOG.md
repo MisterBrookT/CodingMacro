@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.13] - 2026-07-17
+
+### Fixed
+
+- Voice/keys focus now follows mouse clicks on herdr panes and spaces: focus changes made inside the herdr UI fired no controller event, so input stayed routed to the previously focused pane. The host now polls the focused herdr agent (1s, no-op outside herdr) and retargets input routing whenever it moves
+- Controller input is dropped entirely while herdr focus sits on a pane hosting no openmicro session (plain terminal, foreign agent, empty space), instead of falling through to the host's own pty — typing into a pane the user isn't looking at is worse than a no-op. Explicit local picks (touchpad in local mode, L2 back to local mode) unblock input
+
 ## [0.1.12] - 2026-07-17
 
 ### Fixed
