@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - Wired Xbox One controllers (`045e:02ea`, Xbox One S) now work over USB. These pads speak the GIP protocol on the wire, so they fell through to the generic HID driver whose byte layout doesn't match and every button failed. A new `parseXboxGipReport` parses the GIP input frame (buttons at bytes 4-5, 10-bit triggers at 6-9, int16 sticks at 10-17), verified against a live capture. The Xbox/guide button — its own GIP message type (0x07) — maps to `touchpad`, matching the other pads' home buttons
 
+### Added
+
+- Xbox Wireless Controller over Bluetooth (`045e:0b20`) support via a dedicated parser for the standard Xbox BT HID report (report ID 0x01: uint16 sticks centred at 0x8000, 10-bit triggers, rotary hat, buttons at bytes 14-15). Previously the PID was unknown, so the pad fell to the generic driver, which misread the report ID as a held south button
+- Both Xbox certifications ship as doctor fixtures: wired Xbox One S (`045e-02ea-usb`) and Bluetooth Xbox Wireless Controller (`045e-0b20-bluetooth`), 17/17 controls each, replayed by CI
+
 ## [0.2.1] - 2026-07-17
 
 ### Fixed

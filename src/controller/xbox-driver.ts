@@ -8,6 +8,9 @@ export const XBOX_PIDS = [0x0b12, 0x0b13, 0x02fd, 0x02e0]
 // Wired pads that speak GIP over USB (macOS exposes them via HID with the raw
 // GIP input frame). Verified against a live Xbox One S (0x02ea) capture.
 export const XBOX_GIP_PIDS = [0x02ea]
+// Bluetooth pads using the standard Xbox BT HID report (report ID 0x01).
+// Verified against a live Xbox Wireless Controller (0x0b20) capture.
+export const XBOX_BT_PIDS = [0x0b20]
 
 /** Normalize a signed 16-bit stick value to -1.0..1.0. */
 function normalizeAxis(raw: number): number {
@@ -21,6 +24,64 @@ function normalizeAxis(raw: number): number {
  * bytes 4-7: triggers (16-bit LE, 0-1023), bytes 8-15: sticks (int16 LE).
  * Exact layout varies by firmware; this matches the common wired layout.
  */
+/**
+ * Parse a standard Xbox Bluetooth HID report (17 bytes, report ID 0x01).
+ * Bytes 1-8: sticks (uint16 LE, centre 0x8000), bytes 9-12: triggers
+ * (uint16 LE, 0-1023), byte 13: dpad hat (1-8 clockwise from north),
+ * byte 14: face buttons/bumpers, byte 15: view/menu/guide/stick clicks.
+ * Layout verified against a live Xbox Wireless Controller (045e:0b20) capture.
+ */
+export function parseXboxBtReport(data: Buffer): ControllerEvent[] {
+  const events: ControllerEvent[] = []
+  if (data.length < 16 || data[0] !== 0x01) return events
+
+  const b14 = data[14]!
+  const b15 = data[15]!
+  const map: Array<[number, number, ButtonId]> = [
+    [b14, 0x01, 'south'],
+    [b14, 0x02, 'east'],
+    [b14, 0x08, 'west'],
+    [b14, 0x10, 'north'],
+    [b14, 0x40, 'l1'],
+    [b14, 0x80, 'r1'],
+    [b15, 0x04, 'view'],
+    [b15, 0x08, 'menu'],
+    // Guide button maps to touchpad like the other pads' home buttons.
+    [b15, 0x10, 'touchpad'],
+    // Stick clicks per the standard layout — not present in the capture.
+    [b15, 0x20, 'l3'],
+    [b15, 0x40, 'r3'],
+  ]
+  for (const [byte, bit, id] of map) {
+    events.push({ kind: 'button', button: id, pressed: (byte & bit) !== 0 })
+  }
+
+  const dpad = data[13]!
+  events.push({
+    kind: 'button',
+    button: 'dpad_up',
+    pressed: dpad === 1 || dpad === 2 || dpad === 8,
+  })
+  events.push({ kind: 'button', button: 'dpad_right', pressed: dpad >= 2 && dpad <= 4 })
+  events.push({ kind: 'button', button: 'dpad_down', pressed: dpad >= 4 && dpad <= 6 })
+  events.push({ kind: 'button', button: 'dpad_left', pressed: dpad >= 6 && dpad <= 8 })
+
+  const lt = data.readUInt16LE(9) / 1023
+  const rt = data.readUInt16LE(11) / 1023
+  events.push({ kind: 'axis', axis: 'l2', value: Math.max(0, Math.min(1, lt)) })
+  events.push({ kind: 'axis', axis: 'r2', value: Math.max(0, Math.min(1, rt)) })
+  events.push({ kind: 'button', button: 'l2', pressed: lt > 0.25 })
+  events.push({ kind: 'button', button: 'r2', pressed: rt > 0.25 })
+
+  const stick = (offset: number): number => (data.readUInt16LE(offset) - 0x8000) / 0x8000
+  events.push({ kind: 'axis', axis: 'left_x', value: stick(1) })
+  events.push({ kind: 'axis', axis: 'left_y', value: stick(3) })
+  events.push({ kind: 'axis', axis: 'right_x', value: stick(5) })
+  events.push({ kind: 'axis', axis: 'right_y', value: stick(7) })
+
+  return events
+}
+
 /**
  * Parse a GIP input frame from a wired Xbox One pad (18 bytes).
  * Byte 0: 0x20 message type, bytes 1-3: flags/sequence/length,

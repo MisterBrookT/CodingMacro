@@ -3,7 +3,11 @@ import { Deduper } from '../src/controller/hal.js'
 import { parseDs4Report } from '../src/controller/ds4-driver.js'
 import { parseGameSirReport } from '../src/controller/gamesir-driver.js'
 import { normalizeGenericAxis, parseGenericReport } from '../src/controller/generic-driver.js'
-import { parseXboxGipReport, parseXboxReport } from '../src/controller/xbox-driver.js'
+import {
+  parseXboxBtReport,
+  parseXboxGipReport,
+  parseXboxReport,
+} from '../src/controller/xbox-driver.js'
 import type { ControllerEvent } from '../src/types.js'
 
 function buttons(events: ControllerEvent[]): Map<string, boolean> {
@@ -170,6 +174,87 @@ describe('parseXboxGipReport', () => {
   it('ignores short frames', () => {
     expect(parseXboxGipReport(Buffer.alloc(8))).toEqual([])
     expect(parseXboxGipReport(Buffer.from('0730', 'hex'))).toEqual([])
+  })
+})
+
+describe('parseXboxBtReport', () => {
+  // Real frames captured from an Xbox Wireless Controller (045e:0b20) over Bluetooth.
+  const bt = (hex: string): Buffer => Buffer.from(hex, 'hex')
+  const idle = '01f783ce825c7da17d0000000000000000'
+
+  it('parses face buttons and bumpers from byte 14', () => {
+    expect(buttons(parseXboxBtReport(bt('01f783ce825c7da17d0000000000010000'))).get('south')).toBe(
+      true,
+    )
+    expect(buttons(parseXboxBtReport(bt('01f783ce825c7da17d0000000000020000'))).get('east')).toBe(
+      true,
+    )
+    expect(buttons(parseXboxBtReport(bt('01f783ce825c7da17d0000000000080000'))).get('west')).toBe(
+      true,
+    )
+    expect(buttons(parseXboxBtReport(bt('01f783ce825c7da17d0000000000100000'))).get('north')).toBe(
+      true,
+    )
+    expect(buttons(parseXboxBtReport(bt('01f783ce820e7b377d0000000000400000'))).get('l1')).toBe(
+      true,
+    )
+    expect(buttons(parseXboxBtReport(bt('01f783ce820e7b377d0000000000800000'))).get('r1')).toBe(
+      true,
+    )
+    expect([...buttons(parseXboxBtReport(bt(idle))).values()].every((p) => !p)).toBe(true)
+  })
+
+  it('parses menu/view/guide and stick clicks from byte 15', () => {
+    expect(buttons(parseXboxBtReport(bt('01f783ce820e7b377d0000000000000800'))).get('menu')).toBe(
+      true,
+    )
+    expect(buttons(parseXboxBtReport(bt('01f783ce820e7b377d0000000000000400'))).get('view')).toBe(
+      true,
+    )
+    expect(
+      buttons(parseXboxBtReport(bt('01f783ce820e7b377d0000000000001000'))).get('touchpad'),
+    ).toBe(true)
+    expect(buttons(parseXboxBtReport(bt('01f783ce820e7b377d0000000000002000'))).get('l3')).toBe(
+      true,
+    )
+    expect(buttons(parseXboxBtReport(bt('01f783ce820e7b377d0000000000004000'))).get('r3')).toBe(
+      true,
+    )
+  })
+
+  it('parses the dpad hat at byte 13 including diagonals', () => {
+    const d = buttons(parseXboxBtReport(bt('01f783ce820e7b377d0000000001000000')))
+    expect(d.get('dpad_up')).toBe(true)
+    expect(d.get('dpad_down')).toBe(false)
+    expect(
+      buttons(parseXboxBtReport(bt('01f783ce820e7b377d0000000002000000'))).get('dpad_right'),
+    ).toBe(true)
+  })
+
+  it('parses triggers as uint16 LE at bytes 9-12', () => {
+    const lt = parseXboxBtReport(bt('01f783ce820e7b377dff03000000000000'))
+    expect(axes(lt).get('l2')).toBe(1)
+    expect(buttons(lt).get('l2')).toBe(true)
+    const rt = parseXboxBtReport(bt('01f783ce820e7b377d0000440000000000'))
+    expect(axes(rt).get('r2')).toBeCloseTo(68 / 1023, 3)
+    expect(buttons(rt).get('r2')).toBe(false)
+  })
+
+  it('normalizes sticks from uint16 centred at 0x8000', () => {
+    const a = axes(parseXboxBtReport(bt(idle)))
+    expect(a.get('left_x')!).toBeCloseTo(0.031, 2)
+    expect(Math.abs(a.get('right_y')!)).toBeLessThan(0.02)
+    const extremes = bt(idle)
+    extremes.writeUInt16LE(0, 1)
+    extremes.writeUInt16LE(0xffff, 5)
+    const e = axes(parseXboxBtReport(extremes))
+    expect(e.get('left_x')).toBe(-1)
+    expect(e.get('right_x')!).toBeCloseTo(1, 3)
+  })
+
+  it('ignores short reports and wrong report IDs', () => {
+    expect(parseXboxBtReport(Buffer.alloc(8))).toEqual([])
+    expect(parseXboxBtReport(bt('02f783ce825c7da17d0000000000000000'))).toEqual([])
   })
 })
 
