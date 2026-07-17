@@ -14,7 +14,14 @@ import { HidManager } from './controller/hid-manager.js'
 import { dispatchAction } from './dispatch.js'
 import type { DispatchDeps } from './dispatch.js'
 import { harnessFor } from './harness/index.js'
-import { focusAgent, focusWorkspace, listAgents, listWorkspaces } from './herdr.js'
+import {
+  focusAgent,
+  focusWorkspace,
+  listAgents,
+  listWorkspaces,
+  releaseAgent,
+  reportAgentState,
+} from './herdr.js'
 import type { Harness } from './harness/types.js'
 import { parseInvocation, USAGE } from './invocation.js'
 import { loadConfig } from './layers.js'
@@ -86,6 +93,13 @@ if (install.trustNotice) console.error(install.trustNotice)
 
 const wrapperId = randomUUID()
 
+// Claim the herdr pane NOW, before the wrapped agent boots: herdr honors the
+// first source to claim a pane and silently drops every later one, so the
+// agent's own herdr integration hook (e.g. herdr:claude at SessionStart) would
+// otherwise win the pane and all of openmicro's state reports would be ignored.
+const herdrPaneId = process.env.HERDR_PANE_ID
+if (herdrPaneId) reportAgentState(herdrPaneId, 'idle')
+
 const server = new HostServer(harness, wrapperId)
 const isHost = await server.listen(HOST_PORT)
 
@@ -93,6 +107,7 @@ let hid: HidManager | null = null
 
 function shutdown(): void {
   agent.dispose()
+  if (herdrPaneId) releaseAgent(herdrPaneId)
   if (isHost) {
     server.close()
     hid?.stop()
