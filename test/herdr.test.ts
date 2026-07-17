@@ -41,6 +41,8 @@ describe('reportAgentState', () => {
         'openmicro',
         '--state',
         herdrState,
+        '--seq',
+        expect.stringMatching(/^\d+$/),
       ],
       expect.any(Function),
     )
@@ -50,6 +52,16 @@ describe('reportAgentState', () => {
     reportAgentState('pane-2', 'executing', 'sess-9')
     const args = execFile.mock.calls[0]![1] as string[]
     expect(args.slice(-2)).toEqual(['--agent-session-id', 'sess-9'])
+  })
+
+  it('emits strictly increasing seqs so herdr never drops a report as stale', () => {
+    reportAgentState('pane-1', 'executing')
+    reportAgentState('pane-1', 'waiting')
+    const seqOf = (call: number): bigint => {
+      const args = execFile.mock.calls[call]![1] as string[]
+      return BigInt(args[args.indexOf('--seq') + 1]!)
+    }
+    expect(seqOf(1)).toBeGreaterThan(seqOf(0))
   })
 
   it('swallows synchronous spawn failures and callback errors', () => {
@@ -139,7 +151,17 @@ describe('releaseAgent', () => {
     releaseAgent('pane-3')
     expect(execFile).toHaveBeenCalledWith(
       'herdr',
-      ['pane', 'release-agent', 'pane-3', '--source', 'openmicro', '--agent', 'openmicro'],
+      [
+        'pane',
+        'release-agent',
+        'pane-3',
+        '--source',
+        'openmicro',
+        '--agent',
+        'openmicro',
+        '--seq',
+        expect.stringMatching(/^\d+$/),
+      ],
       expect.any(Function),
     )
   })

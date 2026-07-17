@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- Herdr agent visibility (for real this time): herdr silently drops any `pane report-agent` / `pane release-agent` request whose `--seq` is not strictly greater than the last seen — and a request without `--seq` defaults to 0, so every openmicro report (including the v0.1.8 startup pane claim) was discarded while herdr still replied ok. All report/release calls now pass an epoch-nanosecond `--seq`, matching herdr's own integration hook
+
 ## [0.1.8] - 2026-07-17
 
 ### Fixed

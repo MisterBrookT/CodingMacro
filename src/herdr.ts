@@ -21,6 +21,19 @@ const STATE_MAP: Record<AgentState, HerdrState> = {
   complete: 'idle',
 }
 
+// herdr drops report/release requests whose seq is not strictly greater than
+// the last seq it saw for the pane — and a request with no --seq defaults to
+// 0, so it is ALWAYS dropped (herdr still replies ok / exits 0). Mirror
+// herdr's own integration hook: epoch-nanosecond seq, bumped if two calls
+// land in the same millisecond.
+let lastSeq = 0n
+
+function nextSeq(): string {
+  const now = BigInt(Date.now()) * 1_000_000n
+  lastSeq = now > lastSeq ? now : lastSeq + 1n
+  return lastSeq.toString()
+}
+
 function run(args: string[]): void {
   try {
     // Errors (ENOENT, non-zero exit) land in the callback and are ignored.
@@ -132,6 +145,8 @@ export function reportAgentState(paneId: string, state: AgentState, sessionId?: 
     AGENT,
     '--state',
     STATE_MAP[state],
+    '--seq',
+    nextSeq(),
   ]
   if (sessionId) args.push('--agent-session-id', sessionId)
   run(args)
@@ -147,5 +162,5 @@ export function reportAgentState(paneId: string, state: AgentState, sessionId?: 
  *     void: Fire-and-forget; all failures are swallowed.
  */
 export function releaseAgent(paneId: string): void {
-  run(['pane', 'release-agent', paneId, '--source', SOURCE, '--agent', AGENT])
+  run(['pane', 'release-agent', paneId, '--source', SOURCE, '--agent', AGENT, '--seq', nextSeq()])
 }
