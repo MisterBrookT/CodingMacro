@@ -23,7 +23,7 @@ CodingMacro adds agent awareness to ordinary gamepads: lifecycle hooks track exe
 One command installs the latest GitHub release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/MisterBrookT/CodingMacro/main/install.sh | sh
+curl -fsSL https://github.com/MisterBrookT/CodingMacro/raw/refs/heads/main/install.sh | sh
 ```
 
 Requires macOS and Node.js 22+. Codex desktop control needs Accessibility permission for keyboard injection. CLI harnesses keep normal terminal keyboard input.
