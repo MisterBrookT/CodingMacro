@@ -8,8 +8,8 @@
 import { execFile } from 'node:child_process'
 import type { AgentState } from './harness/types.js'
 
-const SOURCE = 'openmicro'
-const AGENT = 'openmicro'
+const SOURCE = 'codingmacro'
+const AGENT = 'codingmacro'
 
 type HerdrState = 'idle' | 'working' | 'blocked'
 
@@ -39,7 +39,7 @@ function run(args: string[]): void {
     // Errors (ENOENT, non-zero exit) land in the callback and are ignored.
     execFile('herdr', args, () => {})
   } catch {
-    // Synchronous spawn failure — never block openmicro on herdr.
+    // Synchronous spawn failure — never block codingmacro on herdr.
   }
 }
 
@@ -157,7 +157,7 @@ export function reportAgentState(paneId: string, state: AgentState, sessionId?: 
 }
 
 /**
- * Release openmicro's agent claim on a herdr pane (session ended).
+ * Release codingmacro's agent claim on a herdr pane (session ended).
  *
  * Args:
  *     paneId (string): Herdr pane id from the X-Herdr-Pane-Id hook header.

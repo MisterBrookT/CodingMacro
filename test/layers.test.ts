@@ -2,15 +2,15 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { DEFAULT_CONFIG, loadConfig, saveConfig } from '../src/layers.js'
-import type { OpenMicroConfig } from '../src/layers.js'
+import { DEFAULT_CONFIG, loadConfig, parseConfig, saveConfig } from '../src/layers.js'
+import type { CodingMacroConfig } from '../src/layers.js'
 
 let dir: string
 let configPath: string
 let realHome: string | undefined
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openmicro-config-'))
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codingmacro-config-'))
   configPath = path.join(dir, 'config.json')
   realHome = process.env.HOME
 })
@@ -34,20 +34,20 @@ describe('loadConfig / saveConfig', () => {
     expect(DEFAULT_CONFIG.layers[0].bindings.r2).toEqual({ type: 'keys', bytes: '\x15' })
   })
 
-  it('defaults to ~/.openmicro/config.json, respecting a HOME override', () => {
+  it('defaults to ~/.codingmacro/config.json, respecting a HOME override', () => {
     process.env.HOME = dir
     const config = loadConfig()
     expect(config).toEqual(DEFAULT_CONFIG)
-    expect(fs.existsSync(path.join(dir, '.openmicro', 'config.json'))).toBe(true)
+    expect(fs.existsSync(path.join(dir, '.codingmacro', 'config.json'))).toBe(true)
   })
 
   it('round-trips a saved config exactly', () => {
-    const custom: OpenMicroConfig = {
+    const custom: CodingMacroConfig = {
       ...DEFAULT_CONFIG,
       layers: [
         { name: 'My Layer', color: { r: 1, g: 2, b: 3 }, bindings: { south: { type: 'accept' } } },
         ...DEFAULT_CONFIG.layers.slice(1),
-      ] as OpenMicroConfig['layers'],
+      ] as CodingMacroConfig['layers'],
       workflows: { custom: 'do the thing' },
     }
     saveConfig(custom, configPath)
@@ -75,12 +75,12 @@ describe('loadConfig / saveConfig', () => {
 
   it('accepts a herdr_space binding and ships it as the default l2', () => {
     expect(DEFAULT_CONFIG.layers[0].bindings.l2).toEqual({ type: 'herdr_space' })
-    const custom: OpenMicroConfig = {
+    const custom: CodingMacroConfig = {
       ...DEFAULT_CONFIG,
       layers: [
         { name: 'L1', color: { r: 0, g: 0, b: 0 }, bindings: { l2: { type: 'herdr_space' } } },
         ...DEFAULT_CONFIG.layers.slice(1),
-      ] as OpenMicroConfig['layers'],
+      ] as CodingMacroConfig['layers'],
     }
     saveConfig(custom, configPath)
     expect(loadConfig(configPath)).toEqual(custom)
@@ -100,5 +100,11 @@ describe('loadConfig / saveConfig', () => {
     })
     fs.writeFileSync(configPath, bad)
     expect(() => loadConfig(configPath)).toThrow(/invalid config/)
+  })
+
+  it('validates in-memory profile imports without touching disk', () => {
+    expect(parseConfig(DEFAULT_CONFIG)).toEqual(DEFAULT_CONFIG)
+    expect(() => parseConfig({ layers: [], workflows: {} })).toThrow(/invalid config/)
+    expect(fs.existsSync(configPath)).toBe(false)
   })
 })

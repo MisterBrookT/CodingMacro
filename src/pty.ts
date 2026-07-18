@@ -43,12 +43,12 @@ export function spawnAgentProcess(
   // herdr's own agent integration hooks (e.g. ~/.claude/hooks/herdr-agent-state.sh)
   // gate on HERDR_ENV=1. If the wrapped agent runs them, it claims the herdr
   // pane's session as herdr:<agent>, and herdr then silently drops every
-  // report from any other source — including openmicro's state reports
-  // (session-owner conflict; herdr can't verify "openmicro" as a takeover
-  // agent). Hide HERDR_ENV from the child so only openmicro reports for the
-  // pane. HERDR_PANE_ID stays: openmicro's hook curls echo it back to us.
+  // report from any other source — including codingmacro's state reports
+  // (session-owner conflict; herdr can't verify "codingmacro" as a takeover
+  // agent). Hide HERDR_ENV from the child so only codingmacro reports for the
+  // pane. HERDR_PANE_ID stays: codingmacro's hook curls echo it back to us.
   delete env.HERDR_ENV
-  if (wrapperId) env.OPENMICRO_INSTANCE_ID = wrapperId
+  if (wrapperId) env.CODINGMACRO_INSTANCE_ID = wrapperId
   return spawnPty(command, args, {
     name: process.env.TERM ?? 'xterm-256color',
     cols: process.stdout.columns,

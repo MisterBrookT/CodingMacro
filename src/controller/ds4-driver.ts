@@ -65,7 +65,7 @@ export function parseDs4Report(data: Buffer): ControllerEvent[] {
 
   // Byte 7 low 2 bits: PS/home (0x01) + touchpad click (0x02). High 6 bits are
   // a report counter on genuine DS4s, so mask them off. Both map to 'touchpad'
-  // (openmicro's focus-cycle button) — pads in DS4 mode like the Cyclone 2 have
+  // (codingmacro's focus-cycle button) — pads in DS4 mode like the Cyclone 2 have
   // no touchpad, so their home button (0x01) is the only source here.
   events.push({ kind: 'button', button: 'touchpad', pressed: (data[7]! & 0x03) !== 0 })
 

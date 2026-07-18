@@ -4,9 +4,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { harnessFor } from '../src/harness/index.js'
+import { DEFAULT_CONFIG } from '../src/layers.js'
+import type { CodingMacroConfig } from '../src/layers.js'
 import { releaseAgent, reportAgentState } from '../src/herdr.js'
 import { HostServer } from '../src/server.js'
 import type { Aggregate } from '../src/state.js'
+import type { ControllerEvent } from '../src/types.js'
 
 vi.mock('../src/herdr.js', () => ({ reportAgentState: vi.fn(), releaseAgent: vi.fn() }))
 
@@ -65,7 +68,95 @@ async function nextFrame(body: ReadableStream<Uint8Array>): Promise<Record<strin
 describe('HostServer', () => {
   it('identifies itself on /health', async () => {
     const res = await fetch(`${base}/health`)
-    expect(await res.json()).toEqual({ app: 'openmicro' })
+    expect(await res.json()).toEqual({ app: 'codingmacro', simulation: false })
+  })
+
+  it('serves dashboard and read-only status without enabling simulation', async () => {
+    const dashboard = await fetch(`${base}/dashboard`)
+    expect(dashboard.status).toBe(200)
+    expect(dashboard.headers.get('content-type')).toContain('text/html')
+    expect(await dashboard.text()).toContain('CodingMacro')
+
+    const status = await fetch(`${base}/api/status`)
+    expect(await status.json()).toEqual({
+      app: 'codingmacro',
+      simulation: false,
+      sessions: [],
+      aggregate: { playing: false, focusSessionId: null, focusIsAttention: false },
+    })
+
+    const denied = await fetch(`${base}/api/simulate`, {
+      method: 'POST',
+      body: JSON.stringify({ kind: 'button', button: 'south', pressed: true }),
+    })
+    expect(denied.status).toBe(403)
+  })
+
+  it('emits validated controller events when simulation is enabled', async () => {
+    const simulated = new HostServer(claude, undefined, { simulationEnabled: true })
+    await simulated.listen(0)
+    const simulatedBase = `http://127.0.0.1:${simulated.boundPort}`
+    const events: ControllerEvent[] = []
+    simulated.on('controller-event', (event: ControllerEvent) => events.push(event))
+    try {
+      const accepted = await fetch(`${simulatedBase}/api/simulate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'button', button: 'south', pressed: true }),
+      })
+      expect(accepted.status).toBe(204)
+      expect(events).toEqual([{ kind: 'button', button: 'south', pressed: true }])
+
+      const rejected = await fetch(`${simulatedBase}/api/simulate`, {
+        method: 'POST',
+        body: JSON.stringify({ kind: 'button', button: 'launch_missiles', pressed: true }),
+      })
+      expect(rejected.status).toBe(400)
+      expect(events).toHaveLength(1)
+
+      const crossSite = await fetch(`${simulatedBase}/api/simulate`, {
+        method: 'POST',
+        headers: { Origin: 'https://evil.example', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'button', button: 'south', pressed: true }),
+      })
+      expect(crossSite.status).toBe(403)
+      expect(events).toHaveLength(1)
+    } finally {
+      simulated.close()
+    }
+  })
+
+  it('serves and saves shareable controller profiles through injected handlers', async () => {
+    let current = DEFAULT_CONFIG
+    const profile = new HostServer(claude, undefined, {
+      configProvider: () => current,
+      configWriter: (next) => {
+        current = next
+      },
+    })
+    await profile.listen(0)
+    const profileBase = `http://127.0.0.1:${profile.boundPort}`
+    try {
+      const get = await fetch(`${profileBase}/api/config`)
+      expect(await get.json()).toEqual(DEFAULT_CONFIG)
+
+      const next: CodingMacroConfig = {
+        ...DEFAULT_CONFIG,
+        layers: [
+          { ...DEFAULT_CONFIG.layers[0], name: '中文开发' },
+          ...DEFAULT_CONFIG.layers.slice(1),
+        ] as CodingMacroConfig['layers'],
+      }
+      const put = await fetch(`${profileBase}/api/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      })
+      expect(put.status).toBe(204)
+      expect(current.layers[0].name).toBe('中文开发')
+    } finally {
+      profile.close()
+    }
   })
 
   it('classifies hook POSTs through the harness to drive the aggregate', async () => {
@@ -335,7 +426,7 @@ describe('HostServer', () => {
   })
 
   it('attributes header-less hooks to the host wrapper when the host harness is GUI', async () => {
-    // The Codex desktop app has no OPENMICRO_INSTANCE_ID env, so its hook
+    // The Codex desktop app has no CODINGMACRO_INSTANCE_ID env, so its hook
     // curls send an empty ownership header. A usesPty:false host adopts them;
     // a CLI host (previous test's scoped server) keeps ignoring them.
     const gui = new HostServer(harnessFor('codex-app'), 'gui-host')
@@ -360,9 +451,9 @@ describe('HostServer', () => {
     }
   })
 
-  it('ignores header-less hook events from sessions openmicro never wrapped', async () => {
+  it('ignores header-less hook events from sessions codingmacro never wrapped', async () => {
     // Global hooks fire from every agent session on the machine. An unwrapped
-    // session has no OPENMICRO_INSTANCE_ID, so its hooks carry no ownership
+    // session has no CODINGMACRO_INSTANCE_ID, so its hooks carry no ownership
     // header — it must not enter the tracker (it would pollute focus cycling
     // and pin state), even when its cwd matches a wrapped session's.
     const scoped = new HostServer(claude, 'host-wrapper')

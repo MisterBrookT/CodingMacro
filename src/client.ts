@@ -1,16 +1,16 @@
-// Client-instance side of the singleton: when another openmicro already owns
+// Client-instance side of the singleton: when another codingmacro already owns
 // the port, this instance registers itself and receives forwarded keystrokes
 // for its own pty over SSE.
 
 import { logger } from './logger.js'
 import { HOST_URL } from './ports.js'
 
-/** True if the process listening on the singleton port is an openmicro host. */
-export async function isOpenmicroHost(): Promise<boolean> {
+/** True if the process listening on the singleton port is an codingmacro host. */
+export async function isCodingMacroHost(): Promise<boolean> {
   try {
     const res = await fetch(`${HOST_URL}/health`, { signal: AbortSignal.timeout(1000) })
     const body = (await res.json()) as { app?: string }
-    return body.app === 'openmicro'
+    return body.app === 'codingmacro'
   } catch {
     return false
   }
@@ -20,7 +20,7 @@ export async function isOpenmicroHost(): Promise<boolean> {
  * Report this wrapper's terminal focus change to the host (fire-and-forget).
  *
  * Args:
- *     wrapperId (string): This instance's OPENMICRO_INSTANCE_ID.
+ *     wrapperId (string): This instance's CODINGMACRO_INSTANCE_ID.
  *     focused (boolean): True on focus-in (ESC[I), false on focus-out (ESC[O).
  *
  * Returns:
@@ -32,7 +32,7 @@ export function reportTerminalFocus(wrapperId: string, focused: boolean): void {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ wrapperId, focused }),
   }).catch(() => {
-    // host gone or not openmicro — focus reports are best-effort
+    // host gone or not codingmacro — focus reports are best-effort
   })
 }
 
@@ -40,7 +40,7 @@ export function reportTerminalFocus(wrapperId: string, focused: boolean): void {
  * Register with the host and stream forwarded keystrokes into `write`.
  *
  * Args:
- *     wrapperId (string): This instance's OPENMICRO_INSTANCE_ID, for hook ownership.
+ *     wrapperId (string): This instance's CODINGMACRO_INSTANCE_ID, for hook ownership.
  *     kind (string): Harness kind, so the host classifies this session's hooks correctly.
  *     write (function): Sink for decoded keystroke bytes (this instance's pty).
  *

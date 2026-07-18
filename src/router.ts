@@ -15,7 +15,7 @@
 // uses the original event's `pressed` flag to drive repeat itself.
 
 import type { Action } from './harness/types.js'
-import type { ControlId, OpenMicroConfig } from './layers.js'
+import type { ControlId, CodingMacroConfig } from './layers.js'
 import type { AxisId, ButtonId, ControllerEvent } from './types.js'
 
 export const GUARD_WINDOW_MS = 750
@@ -177,7 +177,7 @@ export class LayerRouter {
   onLayerChange: ((index: number) => void) | null
 
   constructor(
-    private readonly config: OpenMicroConfig,
+    private readonly config: CodingMacroConfig,
     options: RouterOptions = {},
   ) {
     this.now = options.now ?? Date.now

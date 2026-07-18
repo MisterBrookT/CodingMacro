@@ -10,11 +10,11 @@
 // silently skipped, never faked.
 
 import type { Action, Harness } from './harness/types.js'
-import type { OpenMicroConfig } from './layers.js'
+import type { CodingMacroConfig } from './layers.js'
 
 export interface DispatchDeps {
   harness: Harness
-  config: OpenMicroConfig
+  config: CodingMacroConfig
   /** Thinking level (0-based) of the currently focused session. */
   getThinkingLevel: () => number
   /** Persist a new thinking level for the focused session. */

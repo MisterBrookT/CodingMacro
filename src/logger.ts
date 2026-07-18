@@ -1,12 +1,12 @@
 // File logger. stdout belongs to the claude TUI passthrough, so logs go to
-// ~/.openmicro/openmicro.log (tail it with `openmicro --verbose` planned later).
+// ~/.codingmacro/codingmacro.log (tail it with `codingmacro --verbose` planned later).
 
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-const LOG_DIR = path.join(os.homedir(), '.openmicro')
-const LOG_FILE = path.join(LOG_DIR, 'openmicro.log')
+const LOG_DIR = path.join(os.homedir(), '.codingmacro')
+const LOG_FILE = path.join(LOG_DIR, 'codingmacro.log')
 
 let ready = false
 

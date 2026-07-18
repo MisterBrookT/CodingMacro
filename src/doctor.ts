@@ -1,4 +1,4 @@
-// `openmicro doctor` — a standalone controller diagnostic. No agent is wrapped
+// `codingmacro doctor` — a standalone controller diagnostic. No agent is wrapped
 // and no host server is bound: it just detects the pad, walks an interactive
 // checklist over readline, and writes a report that IS the test-fixture file
 // (same schema, drop it straight into test/fixtures/controllers/ and PR it).
@@ -72,7 +72,7 @@ interface AxisRange {
 /** Report schema — also the fixture schema (schemaVersion pins it). */
 export interface DoctorReport {
   schemaVersion: 1
-  openmicroVersion: string
+  codingmacroVersion: string
   platform: string
   osVersion: string
   controller: {
@@ -346,13 +346,15 @@ function markdownSummary(report: DoctorReport): string {
   const c = report.controller
   const parserNote = c.driver === 'dualsense' ? ' (parser: dualsense-ts)' : ''
   const lines: string[] = []
-  lines.push('### OpenMicro controller report')
+  lines.push('### CodingMacro controller report')
   lines.push('')
   const shownName = c.makeModel ? `${c.makeModel} — reports as "${c.product}"` : c.product
   lines.push(`- Controller: ${shownName} (VID ${c.vid} / PID ${c.pid})`)
   lines.push(`- Transport: ${c.transport}`)
   lines.push(`- Driver: ${c.driver}${parserNote}`)
-  lines.push(`- openmicro ${report.openmicroVersion} · ${report.platform} · ${report.osVersion}`)
+  lines.push(
+    `- codingmacro ${report.codingmacroVersion} · ${report.platform} · ${report.osVersion}`,
+  )
   lines.push('')
   lines.push('| Control | Result |')
   lines.push('| --- | --- |')
@@ -389,7 +391,7 @@ export async function runDoctor(opts: { capture?: boolean } = {}): Promise<void>
         (d) => d.usagePage === 0x01 && (d.usage === 0x04 || d.usage === 0x05) && d.path,
       )
       if (!candidate?.path) {
-        console.error('No controller detected. Plug one in and rerun `openmicro doctor`.')
+        console.error('No controller detected. Plug one in and rerun `codingmacro doctor`.')
         return
       }
       const results = await runCaptureOnly(candidate.path, rl)
@@ -420,7 +422,7 @@ export async function runDoctor(opts: { capture?: boolean } = {}): Promise<void>
     driver.start()
     if (!(await connected)) {
       console.error(
-        'Controller detected but could not be opened. Close any running openmicro sessions (they hold the device) and rerun. Details: ~/.openmicro/openmicro.log',
+        'Controller detected but could not be opened. Close any running codingmacro sessions (they hold the device) and rerun. Details: ~/.codingmacro/codingmacro.log',
       )
       return
     }
@@ -479,7 +481,7 @@ function buildReport(
 ): DoctorReport {
   return {
     schemaVersion: 1,
-    openmicroVersion: packageVersion(),
+    codingmacroVersion: packageVersion(),
     platform: process.platform,
     osVersion: version() || release(),
     controller,

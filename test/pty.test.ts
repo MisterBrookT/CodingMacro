@@ -13,7 +13,7 @@ afterEach(() => {
 })
 
 function makePrebuilds(entries: Record<string, string[]>): string {
-  tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'openmicro-pty-'))
+  tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'codingmacro-pty-'))
   for (const [dir, files] of Object.entries(entries)) {
     fs.mkdirSync(path.join(tmp, dir), { recursive: true })
     for (const file of files) {
@@ -65,7 +65,7 @@ describe('spawnAgentProcess', () => {
     expect(call).toMatchObject({
       command: 'codex',
       args: ['--model', 'gpt-5.4'],
-      env: { OPENMICRO_INSTANCE_ID: 'wrapper-123' },
+      env: { CODINGMACRO_INSTANCE_ID: 'wrapper-123' },
     })
     expect(call!.env.PATH).toBe(process.env.PATH)
   })
@@ -97,8 +97,8 @@ describe('spawnAgentProcess', () => {
   })
 
   it('leaves the inherited environment unchanged when no wrapper id is requested', () => {
-    const previous = process.env.OPENMICRO_INSTANCE_ID
-    process.env.OPENMICRO_INSTANCE_ID = 'existing-value'
+    const previous = process.env.CODINGMACRO_INSTANCE_ID
+    process.env.CODINGMACRO_INSTANCE_ID = 'existing-value'
     let env: Record<string, string> | undefined
     const spawn = ((
       _command: string,
@@ -111,10 +111,10 @@ describe('spawnAgentProcess', () => {
 
     try {
       spawnAgentProcess(spawn, 'claude', [], undefined)
-      expect(env!.OPENMICRO_INSTANCE_ID).toBe('existing-value')
+      expect(env!.CODINGMACRO_INSTANCE_ID).toBe('existing-value')
     } finally {
-      if (previous === undefined) delete process.env.OPENMICRO_INSTANCE_ID
-      else process.env.OPENMICRO_INSTANCE_ID = previous
+      if (previous === undefined) delete process.env.CODINGMACRO_INSTANCE_ID
+      else process.env.CODINGMACRO_INSTANCE_ID = previous
     }
   })
 })

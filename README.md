@@ -1,186 +1,115 @@
-<p align="center"><img src="assets/open-micro-banner.png" alt="OpenMicro connects game controllers to Claude Code and Codex CLI" width="100%"></p>
+<div align="center">
 
-# One controller. Your agent workflow.
+# CodingMacro
 
-Bring Codex Micro to any gaming controller and coding harness
+**Gamepad control for AI coding agents.**
 
-## Start in 60 seconds
+Control Codex, Claude Code, and multiple agent sessions from GameSir, Xbox, DualSense, or any compatible controller.
 
-You need macOS, Node.js 22 or newer, Claude Code or Codex CLI, and a connected controller. OpenMicro is macOS-first; other platforms are not yet tested.
+[中文](README.zh.md) · [Controllers](CONTROLLERS.md) · [Contributing](CONTRIBUTING.md)
 
-```sh
-npm i -g openmicro
+[![macOS](https://img.shields.io/badge/macOS-13%2B-17130f?style=flat-square)](https://github.com/MisterBrookT/CodingMacro)
+[![Node](https://img.shields.io/badge/Node-22%2B-17130f?style=flat-square)](package.json)
+[![MIT](https://img.shields.io/badge/license-MIT-ff6b2c?style=flat-square)](LICENSE)
 
-openmicro claude # or just: openmicro
-openmicro codex
-openmicro codex-app # drive the Codex macOS desktop app
-```
+</div>
 
-`openmicro codex-app` drives the Codex desktop app instead of a terminal CLI: new chat and prompt prefill use `codex://` deep links (no permission needed), while submit (Enter), reject (Esc), dictation (Ctrl+Shift+D), d-pad arrows, and Ctrl+U send keystrokes and need Accessibility permission for your terminal. A stick-flick prompt prefills the composer; press submit to send it. The app launches automatically and the terminal shows live status (controller, actions, agent state).
+![CodingMacro local controller and agent dashboard](assets/codingmacro-dashboard.jpg)
 
-OpenMicro installs its lifecycle hooks automatically. If Codex reports that its hooks changed, open `/hooks` in Codex and trust the OpenMicro hooks.
+CodingMacro adds agent awareness to ordinary gamepads: lifecycle hooks track execution and approval states, one controller switches across sessions, and a local HUD shows what every button will do. No controller nearby? Browser simulation exercises the same normalized event pipeline.
 
-Controller support depends on the exact device and connection. Check the [controller compatibility guide](CONTROLLERS.md) before you start, or run `openmicro doctor` to test your controller.
+## Install
 
-## Default controls
-
-|                                   DualSense                                    |                                      GameSir G7 Pro                                      |
-| :----------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------: |
-| ![Default OpenMicro DualSense controls](assets/default-dualsense-controls.png) | ![Default OpenMicro GameSir G7 Pro controls](assets/default-gamesir-g7-pro-controls.png) |
-
-### Text control reference
-
-| Control                                         | Action                                                       |
-| ----------------------------------------------- | ------------------------------------------------------------ |
-| south (✕ / A)                                   | Submit or confirm                                            |
-| east (○ / B)                                    | Interrupt or dismiss                                         |
-| north (△ / Y)                                   | Push-to-talk                                                 |
-| west (□ / X)                                    | Start a new chat                                             |
-| d-pad                                           | Navigate TUI menus; repeats while held                       |
-| left stick flick up / down / left / right       | Review PR / debug / refactor / write tests                   |
-| right stick rotate clockwise / counterclockwise | Increase / decrease thinking depth                           |
-| R1                                              | Cycle modes (Shift+Tab)                                      |
-| R2                                              | Clear the input line (Ctrl+U)                                |
-| touchpad click                                  | Focus the next session by default, where supported           |
-| L2                                              | Cycle herdr spaces; touchpad then cycles agents in the space |
-
-Stick flicks fire after returning to center; each quarter-turn steps thinking depth once. Hold L1 with south, east, west, north, d-pad up, or d-pad down to select one of six layers. The first layer ships with these defaults; the other five start empty. Other controls are unbound by default and remappable.
-
-Voice and thinking-depth support varies by harness; see [OpenMicro feature parity](#openmicro-feature-parity).
-
-## What it gives you
-
-- Respond to agents without hunting through terminal tabs.
-- Launch review, debug, refactor, and test workflows with a stick flick.
-- Switch among active sessions from one controller.
-- See focused-session state on DualSense.
-- Remap six layers for project-specific workflows.
-- First-class [herdr](#herdr-integration) support: sessions appear in the herdr workspace overview, and the controller drives herdr spaces and agents.
-
-## OpenMicro feature parity
-
-`✅` supported · `⚠️` setup required or best-effort · `—` no verified equivalent
-
-| Capability                       | Claude Code                    | Codex CLI                    |
-| -------------------------------- | ------------------------------ | ---------------------------- |
-| Launch and forward CLI arguments | ✅ `openmicro claude`          | ✅ `openmicro codex`         |
-| Submit / confirm                 | ✅ Enter                       | ✅ Enter                     |
-| Interrupt / dismiss              | ✅ Escape                      | ✅ Escape                    |
-| Start a new chat                 | ✅ `/clear`                    | ✅ `/new`                    |
-| D-pad TUI navigation             | ✅ Arrow-key passthrough       | ✅ Arrow-key passthrough     |
-| Stick-triggered workflow prompts | ✅ Supported                   | ✅ Supported                 |
-| Push-to-talk                     | ✅ Enable with `/voice`        | — No equivalent              |
-| Thinking-depth dial              | ✅ `/effort`, low → max        | — No deterministic binding   |
-| Six remappable control layers    | ✅ Supported                   | ✅ Supported                 |
-| Multi-session focus switching    | ✅ Supported                   | ✅ Supported                 |
-| Executing status                 | ✅ Prompt and tool hooks       | ✅ Prompt and tool hooks     |
-| Waiting-for-input status         | ✅ Questions and notifications | ✅ Permission requests       |
-| Stop status                      | ✅ Stop hook                   | ✅ Stop hook                 |
-| Error status                     | ⚠️ Notification-text matching  | — No error hook signal       |
-| Hook installation                | ✅ Automatic                   | ⚠️ Trust changes in `/hooks` |
-
-Layers, workflows, navigation, and session switching are handled by OpenMicro itself. Harness-specific gaps are left unmapped instead of sending guessed keystrokes. A Stop event means the agent stopped; it does not guarantee success.
-
-## Configure controls and workflows
-
-OpenMicro creates `~/.openmicro/config.json` on first run. Edit bindings, layer colors, and workflow prompt text there. Invalid configuration stops startup without overwriting the file.
-
-```json
-{
-  "layers": [
-    {
-      "name": "Layer 1",
-      "color": { "r": 255, "g": 255, "b": 255 },
-      "bindings": {
-        "south": { "type": "accept" },
-        "lstick_up": { "type": "workflow", "presetId": "review-pr" },
-        "rstick_cw": { "type": "thinking_depth", "delta": 1 }
-      }
-    },
-    { "name": "Layer 2", "color": { "r": 160, "g": 32, "b": 240 }, "bindings": {} },
-    { "name": "Layer 3", "color": { "r": 0, "g": 255, "b": 255 }, "bindings": {} },
-    { "name": "Layer 4", "color": { "r": 255, "g": 140, "b": 0 }, "bindings": {} },
-    { "name": "Layer 5", "color": { "r": 255, "g": 20, "b": 147 }, "bindings": {} },
-    { "name": "Layer 6", "color": { "r": 255, "g": 255, "b": 0 }, "bindings": {} }
-  ],
-  "workflows": {
-    "review-pr": "Review this PR for correctness, security, and style issues."
-  }
-}
-```
-
-Binding keys can be buttons such as `south` and `dpad_up`, or gestures such as `lstick_up` and `rstick_cw`. Actions include `accept`, `reject`, `push_to_talk`, `new_chat`, `thinking_depth`, `workflow`, `prompt`, `focus_session`, `layer`, `herdr_space`, and raw `keys`.
-
-## Sessions and status
-
-The first OpenMicro process owns the controller and becomes the host. Later processes register as clients, so one controller can drive several terminal sessions. On supported pads, touchpad click cycles focus by default.
-
-On DualSense, the lightbar follows the focused session: blue while executing, amber while waiting, green when stopped, red on a detected error, and dim white while idle. The five player LEDs show occupied session slots.
-
-## Herdr integration
-
-OpenMicro treats [herdr](https://github.com/stephenleo/herdr) as a first-class environment. Everything below is automatic and a no-op outside herdr or when the `herdr` CLI is absent.
-
-- **State reporting.** A wrapped session running inside a herdr-managed pane reports its state (working/blocked/idle) to herdr, so it shows up in the herdr agents panel. OpenMicro claims the pane at startup and releases it on exit.
-- **Space switching.** L2 cycles through herdr workspaces ("spaces") and back to local mode.
-- **Agent cycling.** While a space is selected, the touchpad cycles focus across that space's agents instead of local sessions.
-- **Focus follows herdr.** Voice and keystrokes retarget to the agent focused in herdr — switching spaces or agents never spills input into a session in another space.
-
-## Controller compatibility
-
-See [CONTROLLERS.md](CONTROLLERS.md) for the full list of community-tested controllers, connection-specific notes, and per-device status.
-
-## Test or contribute a controller
+Until the first npm release, install from source:
 
 ```sh
-openmicro doctor
+git clone https://github.com/MisterBrookT/CodingMacro.git
+cd CodingMacro
+npm ci
+npm run build
+npm link
 ```
 
-The diagnostic checks controller input and, on DualSense, lightbar/player-LED output. It writes a `<vid>-<pid>-<transport>.json` report that can be added unchanged to `test/fixtures/controllers/`; CI then replays the captured inputs as a regression test. See [CONTROLLERS.md](CONTROLLERS.md) for contribution steps.
+Requires macOS and Node.js 22+. Codex desktop control needs Accessibility permission for keyboard injection. CLI harnesses keep normal terminal keyboard input.
 
-## Hardware notes
-
-- DualSense is the only controller with lightbar and player-LED output. DS4, Xbox, and GameSir controllers are input-only; generic HID input is best-effort because report layouts vary.
-- DualSense has five player LEDs, so feedback represents at most five active session slots.
-
-## Add another harness
-
-The public `openmicro/harness` API exposes the `Harness` contract and `registerHarness()`. Implement the contract, return `null` for actions without a verified CLI equivalent, and register it before OpenMicro resolves the harness.
-
-```ts
-import { registerHarness } from 'openmicro/harness'
-import type { Harness } from 'openmicro/harness'
-
-const myHarness: Harness = {
-  kind: 'my-cli',
-  command: 'my-cli',
-  buildArgs: (args) => args,
-  installHooks: () => ({ changed: false, trustNotice: null }),
-  stateForHookEvent: () => null,
-  resolveAction: (action) => {
-    if (action.type === 'accept') return { bytes: '\r' }
-    if (action.type === 'reject') return { bytes: '\x1b' }
-    if (action.type === 'prompt') return { bytes: `${action.text}\r` }
-    if (action.type === 'keys') return { bytes: action.bytes }
-    return null
-  },
-}
-
-registerHarness(myHarness)
-```
-
-The binary does not load harness plugins from configuration yet, so a third-party registration currently needs a small custom entry point.
-
-## Troubleshooting
-
-### Controller is connected but OpenMicro cannot open it
-
-Another process probably owns the device exclusively. Quit other controller tools, Steam, browser tabs using Gamepad/WebHID, and PS Remote Play, then retry.
-
-On macOS, this command lists processes with the DualSense open:
+## Start
 
 ```sh
-ioreg -r -n "DualSense Wireless Controller" -l -w0 | grep IOUserClientCreator
+codingmacro claude
+codingmacro codex
+codingmacro codex-app
 ```
 
-Current macOS versions do not require Input Monitoring permission for game controllers.
+Open live HUD while using a real controller:
+
+```sh
+codingmacro --dashboard codex-app
+```
+
+Develop or demo without hardware:
+
+```sh
+codingmacro --simulate codex-app
+```
+
+Simulation is localhost-only and disabled by default. It never creates a virtual OS controller; it injects normalized controller events directly into CodingMacro, matching the application layer used by real HID drivers.
+
+## Controls
+
+| Control              | Default action                  |
+| -------------------- | ------------------------------- |
+| A / Cross            | Submit; hold 500ms for approval |
+| B / Circle           | Interrupt or dismiss            |
+| X / Square           | New chat                        |
+| Y / Triangle         | Push-to-talk where supported    |
+| D-pad                | Navigate agent UI               |
+| Left stick flick     | Review, debug, refactor, tests  |
+| Right stick rotation | Change thinking depth           |
+| Home / Touchpad      | Next agent session              |
+| L1 + face/D-pad      | Select one of six layers        |
+
+Edit `~/.codingmacro/config.json` to remap buttons, colors, workflows, and raw key sequences. Invalid configuration fails safely without overwriting the file.
+
+## Agent support
+
+| Capability                 | Claude Code | Codex CLI                | Codex app                      |
+| -------------------------- | ----------- | ------------------------ | ------------------------------ |
+| Submit / reject / new chat | Yes         | Yes                      | Yes                            |
+| Workflow prompts           | Yes         | Yes                      | Yes                            |
+| Agent lifecycle state      | Yes         | Yes                      | Yes                            |
+| Multi-session routing      | Yes         | Yes                      | App task switching is evolving |
+| Push-to-talk               | Yes         | No verified binding      | Yes                            |
+| Thinking-depth dial        | Yes         | No deterministic binding | No deterministic binding       |
+
+Unsupported actions stay unmapped. CodingMacro does not guess unstable shortcuts.
+
+## Controllers
+
+Certified fixtures currently cover GameSir Cyclone 2 in DS4 mode, GameSir G7 Pro, Xbox One S wired/Bluetooth, and DualSense. Unknown HID gamepads use a best-effort parser.
+
+```sh
+codingmacro doctor
+codingmacro doctor --capture
+```
+
+Doctor writes a replayable report. See [CONTROLLERS.md](CONTROLLERS.md) to add a model.
+
+## Architecture and trust
+
+- First process binds `127.0.0.1:48762`, owns HID, and aggregates session state.
+- Later processes register as clients and receive focused keystrokes over local SSE.
+- Claude Code and Codex lifecycle hooks are merged into existing config files atomically.
+- Dashboard status is read-only; input endpoint returns `403` unless host started with `--simulate`.
+- No telemetry or remote service.
+
+## Build
+
+```sh
+npm ci
+npm run verify
+npm run build
+```
+
+## Attribution
+
+Based on [OpenMicro](https://github.com/stephenleo/OpenMicro) by Stephen Leo. Original and new work are MIT licensed; see [NOTICE.md](NOTICE.md) and [LICENSE](LICENSE).

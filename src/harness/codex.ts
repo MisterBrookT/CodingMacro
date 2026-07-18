@@ -23,7 +23,7 @@ export const codexHarness: Harness = {
       changed: result === 'changed',
       trustNotice:
         result === 'changed'
-          ? 'openmicro: Codex hooks changed — open /hooks in Codex and trust the openmicro hooks'
+          ? 'codingmacro: Codex hooks changed — open /hooks in Codex and trust the codingmacro hooks'
           : null,
     }
   },

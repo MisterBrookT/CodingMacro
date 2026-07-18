@@ -1,10 +1,10 @@
 # Controller compatibility
 
-OpenMicro accepts input from DualSense, DualShock 4 (including third-party pads in DS4 mode, such as the GameSir Cyclone 2), GameSir-G7 Pro, and Xbox gamepads (wired USB or Bluetooth), with a best-effort fallback for generic HID layouts. DualSense is the recommended controller because it also supports lightbar and player-LED feedback; other controllers are input-only.
+CodingMacro accepts input from DualSense, DualShock 4 (including third-party pads in DS4 mode, such as the GameSir Cyclone 2), GameSir-G7 Pro, and Xbox gamepads (wired USB or Bluetooth), with a best-effort fallback for generic HID layouts. DualSense is the recommended controller because it also supports lightbar and player-LED feedback; other controllers are input-only.
 
 ## Community-tested controllers
 
-Every controller below has a committed `openmicro doctor` report. CI replays captured inputs through the matching parser on every change.
+Every controller below has a committed `codingmacro doctor` report. CI replays captured inputs through the matching parser on every change.
 
 <!-- controllers:start -->
 
@@ -23,12 +23,12 @@ Every controller below has a committed `openmicro doctor` report. CI replays cap
 Run the standalone diagnostic without starting an agent:
 
 ```sh
-openmicro doctor
+codingmacro doctor
 ```
 
 Follow the prompts, then add the generated `<vid>-<pid>-<transport>.json` file to `test/fixtures/controllers/` in a pull request. Run `npm run gen:controllers` to refresh this page. If you cannot open a pull request, paste the report into the [controller report issue template](../../issues/new?template=controller-report.yml).
 
-If OpenMicro has no parser for your controller, `doctor` captures the raw input needed to add one.
+If CodingMacro has no parser for your controller, `doctor` captures the raw input needed to add one.
 
 ## Adding support for a new controller (with an AI coding agent)
 
@@ -38,7 +38,7 @@ Every driver in this repo was added with the same debug loop. It works with Clau
 
 Clone the repo, run `npm install`, connect the pad, start your agent in the repo root, and paste:
 
-> My controller fails `openmicro doctor` — output below. Follow the "Adding support for a new controller" guide in CONTROLLERS.md: run `npm run capture` in the background and tell me the exact order to press controls; decode the layout from the frames; add a parser and route my VID/PID to it; then walk me through certifying with doctor and opening the PR.
+> My controller fails `codingmacro doctor` — output below. Follow the "Adding support for a new controller" guide in CONTROLLERS.md: run `npm run capture` in the background and tell me the exact order to press controls; decode the layout from the frames; add a parser and route my VID/PID to it; then walk me through certifying with doctor and opening the PR.
 >
 > [paste your doctor output here]
 
@@ -46,7 +46,7 @@ Everything below is the playbook the agent (or a human) follows.
 
 ### 1. Diagnose
 
-`openmicro doctor` ends in one of three states:
+`codingmacro doctor` ends in one of three states:
 
 - **All 17 controls pass** — no code needed. Commit the report as a fixture (see "Test your controller" above).
 - **`Driver: generic` and buttons fail** — the pad's VID/PID is unknown, so it fell back to the generic parser whose byte layout almost never matches. The common case.

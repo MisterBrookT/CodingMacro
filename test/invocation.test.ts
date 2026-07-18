@@ -13,6 +13,8 @@ describe('parseInvocation', () => {
       version: false,
       doctor: false,
       doctorCapture: false,
+      simulate: false,
+      dashboard: false,
     })
   })
 
@@ -24,6 +26,8 @@ describe('parseInvocation', () => {
       version: false,
       doctor: false,
       doctorCapture: false,
+      simulate: false,
+      dashboard: false,
     })
   })
 
@@ -35,6 +39,8 @@ describe('parseInvocation', () => {
       version: false,
       doctor: false,
       doctorCapture: false,
+      simulate: false,
+      dashboard: false,
     })
   })
 
@@ -46,6 +52,8 @@ describe('parseInvocation', () => {
       version: false,
       doctor: false,
       doctorCapture: false,
+      simulate: false,
+      dashboard: false,
     })
   })
 
@@ -62,6 +70,8 @@ describe('parseInvocation', () => {
       version: false,
       doctor: true,
       doctorCapture: false,
+      simulate: false,
+      dashboard: false,
     })
   })
 
@@ -70,10 +80,28 @@ describe('parseInvocation', () => {
     expect(parsed.doctor).toBe(true)
     expect(parsed.doctorCapture).toBe(true)
   })
+
+  it('strips global simulator flags before resolving the harness', () => {
+    expect(parseInvocation(['--simulate', '--dashboard', 'codex-app'])).toMatchObject({
+      kind: 'codex-app',
+      agentArgs: [],
+      simulate: true,
+      dashboard: true,
+    })
+  })
+
+  it('--simulate implies dashboard and works after the harness name', () => {
+    expect(parseInvocation(['codex', '--simulate', '--model', 'gpt-5'])).toMatchObject({
+      kind: 'codex',
+      agentArgs: ['--model', 'gpt-5'],
+      simulate: true,
+      dashboard: true,
+    })
+  })
 })
 
 describe('--version', () => {
-  it.each([['--version'], ['-V'], ['-v']])('%s reports openmicro, not the agent', (flag) => {
+  it.each([['--version'], ['-V'], ['-v']])('%s reports codingmacro, not the agent', (flag) => {
     const parsed = parseInvocation([flag])
     expect(parsed.version).toBe(true)
     expect(parsed.agentArgs).toEqual([])

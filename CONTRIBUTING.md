@@ -1,4 +1,4 @@
-# Contributing to OpenMicro
+# Contributing to CodingMacro
 
 Thanks for helping build the open Codex Micro replica. There are three ways in, from zero-code to core.
 
@@ -7,8 +7,8 @@ Thanks for helping build the open Codex Micro replica. There are three ways in, 
 The most valuable contribution: run the hardware diagnostic and submit the result.
 
 ```bash
-npm i -g openmicro
-openmicro doctor
+npm i -g codingmacro
+codingmacro doctor
 ```
 
 It writes a report named by your controller's identity (e.g. `054c-0ce6-usb.json`). Open a PR adding that file to `test/fixtures/controllers/` — unedited — then run `npm run gen:controllers` so the README table includes your pad. CI replays your captured button presses through the parsers on every future build.
@@ -19,12 +19,12 @@ It writes a report named by your controller's identity (e.g. `054c-0ce6-usb.json
 
 ## 2. Add a harness (one file)
 
-OpenMicro drives any agent CLI through the `Harness` interface — see "Adding a harness" in the README. A new harness is one file implementing `Harness` plus a registry entry; the core never needs to change. PRs should include the harness's `stateForHookEvent`/`resolveAction` unit tests (pure, no I/O) and note which actions return `null` (unsupported is fine — faked keybindings are not: verify every binding against the real CLI and cite the doc or help output).
+CodingMacro drives any agent CLI through the `Harness` interface — see "Adding a harness" in the README. A new harness is one file implementing `Harness` plus a registry entry; the core never needs to change. PRs should include the harness's `stateForHookEvent`/`resolveAction` unit tests (pure, no I/O) and note which actions return `null` (unsupported is fine — faked keybindings are not: verify every binding against the real CLI and cite the doc or help output).
 
 ## 3. Core changes
 
 ```bash
-git clone https://github.com/stephenleo/OpenMicro && cd OpenMicro
+git clone https://github.com/MisterBrookT/CodingMacro && cd CodingMacro
 npm install        # Node >= 22, macOS-first (native deps: node-hid, node-pty)
 npm run verify     # typecheck + lint + format:check + tests — must be green
 ```

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// openmicro — wrap an AI agent CLI in a pty and drive it with a game controller.
-// Usage: openmicro [claude|codex] [...agent args]   (claude is the default)
+// codingmacro — wrap an AI agent CLI in a pty and drive it with a game controller.
+// Usage: codingmacro [claude|codex] [...agent args]   (claude is the default)
 //
 // The first instance to bind the singleton port becomes the HOST: it owns the
 // controller and aggregates agent state across every session. Later instances
@@ -10,7 +10,7 @@
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { isOpenmicroHost, reportTerminalFocus, runAsClient } from './client.js'
+import { isCodingMacroHost, reportTerminalFocus, runAsClient } from './client.js'
 import { HidManager } from './controller/hid-manager.js'
 import { dispatchAction } from './dispatch.js'
 import type { DispatchDeps } from './dispatch.js'
@@ -25,16 +25,18 @@ import {
 } from './herdr.js'
 import type { Harness } from './harness/types.js'
 import { parseInvocation, USAGE } from './invocation.js'
-import { loadConfig } from './layers.js'
-import type { OpenMicroConfig } from './layers.js'
+import { loadConfig, parseConfig, saveConfig } from './layers.js'
+import type { CodingMacroConfig } from './layers.js'
 import { effectiveFocusIndex, feedbackFor } from './feedback.js'
 import type { RGB } from './feedback.js'
 import { KeyRepeater } from './keymap.js'
 import { logger } from './logger.js'
 import { HOST_PORT } from './ports.js'
+import { HOST_URL } from './ports.js'
 import { AgentPty } from './pty.js'
 import { LayerRouter } from './router.js'
 import { HostServer } from './server.js'
+import { ApprovalHoldGate, APPROVAL_HOLD_MS } from './safety.js'
 import { nextFocus } from './state.js'
 import type { Aggregate } from './state.js'
 import type { ButtonId, ControllerEvent } from './types.js'
@@ -81,7 +83,7 @@ try {
   process.exit(1)
 }
 
-let config: OpenMicroConfig
+let config: CodingMacroConfig
 try {
   config = loadConfig()
 } catch (err) {
@@ -97,12 +99,35 @@ const wrapperId = randomUUID()
 // Claim the herdr pane NOW, before the wrapped agent boots: herdr honors the
 // first source to claim a pane and silently drops every later one, so the
 // agent's own herdr integration hook (e.g. herdr:claude at SessionStart) would
-// otherwise win the pane and all of openmicro's state reports would be ignored.
+// otherwise win the pane and all of codingmacro's state reports would be ignored.
 const herdrPaneId = process.env.HERDR_PANE_ID
 if (herdrPaneId) reportAgentState(herdrPaneId, 'idle')
 
-const server = new HostServer(harness, wrapperId)
+const server = new HostServer(harness, wrapperId, {
+  simulationEnabled: invocation.simulate,
+  configProvider: () => config,
+  configWriter: (next) => {
+    const parsed = parseConfig(next)
+    saveConfig(parsed)
+    config = parsed
+  },
+})
 const isHost = await server.listen(HOST_PORT)
+
+function openDashboard(): void {
+  const url = `${HOST_URL}/dashboard`
+  const command =
+    process.platform === 'darwin'
+      ? { file: 'open', args: [url] }
+      : process.platform === 'win32'
+        ? { file: 'cmd', args: ['/c', 'start', '', url] }
+        : { file: 'xdg-open', args: [url] }
+  execFile(command.file, command.args, (err) => {
+    if (err) logger.warn(`dashboard available at ${url}`)
+  })
+}
+
+if (invocation.dashboard) openDashboard()
 
 let hid: HidManager | null = null
 
@@ -161,7 +186,7 @@ const agent: Pick<AgentPty, 'write' | 'dispose'> = usesPty
 if (!usesPty) {
   // Launch/activate the target app the way pty harnesses launch their CLI.
   execFile(harness.command, harness.buildArgs(invocation.agentArgs), () => {})
-  guiStatus(`openmicro ${harness.kind} started — waiting for a controller… (Ctrl+C to quit)`, 36)
+  guiStatus(`codingmacro ${harness.kind} started — waiting for a controller… (Ctrl+C to quit)`, 36)
 }
 
 // Ctrl+C passthrough: forward the interrupt to the child so it decides how to
@@ -182,20 +207,21 @@ process.on('SIGTERM', () => {
 })
 
 if (!isHost) {
-  // ── Client: another openmicro owns the controller + state aggregation. ──
-  guiStatus('another openmicro instance owns the controller — running as client', 33)
-  if (await isOpenmicroHost()) {
+  // ── Client: another codingmacro owns the controller + state aggregation. ──
+  guiStatus('another codingmacro instance owns the controller — running as client', 33)
+  if (await isCodingMacroHost()) {
     runAsClient(wrapperId, invocation.kind, (bytes) => agent.write(bytes)).catch((err) =>
       logger.warn('client stream failed', err),
     )
   } else {
-    logger.warn('singleton port in use by a non-openmicro process — running without controller')
+    logger.warn('singleton port in use by a non-codingmacro process — running without controller')
   }
 } else {
   // ── Host: controller + feedback + state aggregation. ────────────────────
   hid = new HidManager()
   const router = new LayerRouter(config)
   const repeater = new KeyRepeater()
+  const approvalGate = new ApprovalHoldGate()
   const thinkingLevels = new Map<string, number>()
   let focusSessionId: string | null = null
   let herdrWorkspaceId: string | null = null // null = local mode (no herdr space selected)
@@ -207,7 +233,7 @@ if (!isHost) {
 
   const focusKey = (): string => focusSessionId ?? SELF_SESSION_KEY
 
-  /** Session hosted in a herdr pane, or null when the pane runs no openmicro session. */
+  /** Session hosted in a herdr pane, or null when the pane runs no codingmacro session. */
   function sessionForPane(paneId: string): string | null {
     for (const [sessionId, herdrPane] of server.sessionPanes) {
       if (herdrPane === paneId) return sessionId
@@ -215,7 +241,7 @@ if (!isHost) {
     return null
   }
 
-  // True while herdr focus sits on a pane hosting no openmicro session (a
+  // True while herdr focus sits on a pane hosting no codingmacro session (a
   // plain terminal, a foreign agent, an empty space). Input is dropped rather
   // than falling through to some pane the user isn't looking at.
   let herdrForeignFocus = false
@@ -390,7 +416,7 @@ if (!isHost) {
   }
 
   // Voice (Space) toggles dictation inside the focused pane's own agent
-  // process — openmicro must remember which pane holds it open, else starting
+  // process — codingmacro must remember which pane holds it open, else starting
   // voice in a second pane leaves the first one transcribing every word too.
   // ponytail: best-effort tracking. Toggling dictation off inside the pane
   // itself (keyboard Space) goes unseen here; next controller press resyncs.
@@ -492,7 +518,7 @@ if (!isHost) {
     scheduleFeedback()
   })
 
-  hid.on('data', (e: ControllerEvent) => {
+  const handleControllerEvent = (e: ControllerEvent): void => {
     try {
       if (e.kind === 'connected') {
         logger.info(`Controller connected: ${e.controllerType}`)
@@ -502,11 +528,23 @@ if (!isHost) {
       }
       if (e.kind === 'disconnected') {
         repeater.releaseAll()
+        approvalGate.cancel()
         guiStatus('controller disconnected — waiting…', 33)
         return
       }
       const action = router.route(e)
       if (!action) return
+
+      if (
+        approvalGate.handle(action, e, server.tracker.aggregate().focusIsAttention, () => {
+          dispatchAction(action, deps)
+          guiStatus('approval confirmed', 32)
+        })
+      ) {
+        if (e.kind === 'button' && e.pressed)
+          guiStatus(`hold A ${APPROVAL_HOLD_MS}ms to approve`, 33)
+        return
+      }
 
       // Held d-pad arrows auto-repeat; every other control fires once on press.
       if (e.kind === 'button' && REPEATING.has(e.button) && action.type === 'keys') {
@@ -520,10 +558,17 @@ if (!isHost) {
     } catch (err) {
       logger.error('controller event handling failed', err)
     }
-  })
+  }
+
+  hid.on('data', handleControllerEvent)
+  server.on('controller-event', handleControllerEvent)
+  if (invocation.simulate) {
+    handleControllerEvent({ kind: 'connected', controllerType: 'simulated' })
+    guiStatus(`simulator ready at ${HOST_URL}/dashboard`, 36)
+  }
 
   hid.start() // HID absence is non-fatal — the manager polls until a pad appears
   applyFeedback() // seed the lightbar with the current layer color
 }
 
-logger.info(`openmicro started (${isHost ? 'host' : 'client'}, kind: ${invocation.kind})`)
+logger.info(`codingmacro started (${isHost ? 'host' : 'client'}, kind: ${invocation.kind})`)

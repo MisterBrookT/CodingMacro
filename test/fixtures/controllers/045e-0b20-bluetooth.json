@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "openmicroVersion": "0.2.2",
+  "codingmacroVersion": "0.2.2",
   "platform": "darwin",
   "osVersion": "Darwin Kernel Version 25.5.0: Tue Jun  9 22:28:17 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T8142",
   "controller": {

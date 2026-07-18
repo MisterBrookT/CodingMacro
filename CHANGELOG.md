@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.0] - 2026-07-18
+
+First CodingMacro release, based on OpenMicro 1.0.1.
+
+### Added
+
+- Local visual Agent HUD at `http://127.0.0.1:48762/dashboard`.
+- `--dashboard` flag for live controller and agent-state monitoring.
+- `--simulate` flag for browser-based controller input without physical hardware.
+- Mouse, touch, and keyboard simulation for face buttons, d-pad, triggers, session switching, workflow flicks, and thinking-depth rotation.
+- Branded config, CLI, hook ownership, logs, package metadata, and compatibility migration for legacy OpenMicro hook headers.
+
+### Security
+
+- Simulation endpoint binds to localhost and remains disabled unless `--simulate` is explicitly passed.
+
+The entries below preserve OpenMicro's upstream history before the fork.
+
 ## [1.0.1] - 2026-07-18
 
 ### Fixed
@@ -15,7 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- `openmicro codex-app`: drive the Codex macOS desktop app — the Codex Micro's own companion app — straight from a game controller. Deep links (`codex://new?prompt=…`) for prompt/new-chat, System Events keystrokes for accept (Enter) and dictation (Ctrl+Shift+D), and LED agent-state via the shared `~/.codex` lifecycle hooks.
+- `codingmacro codex-app`: drive the Codex macOS desktop app — the Codex Micro's own companion app — straight from a game controller. Deep links (`codex://new?prompt=…`) for prompt/new-chat, System Events keystrokes for accept (Enter) and dictation (Ctrl+Shift+D), and LED agent-state via the shared `~/.codex` lifecycle hooks.
 - GUI mode launches the app at startup and prints live colored terminal status: controller connect/disconnect, dispatched actions, and agent-state changes.
 - `Harness` interface: optional `usesPty`/`execute` members let third-party harnesses target GUI apps instead of pty-wrapped CLIs.
 
@@ -48,7 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - GameSir-G7 Pro Bluetooth support: a dedicated `gamesir` driver, detected by VID/PID ahead of the generic fallback that misread the pad's reports (byte 0 is the report ID `0x07`, which decoded as phantom face-button presses). All 17 controls and full axis ranges pass the doctor; the certified fixture ships in `test/fixtures/controllers/` and CI replays every captured press
 - The G7 Pro's home button maps to `touchpad` (session cycling by default) — the pad's M button is firmware-consumed and never reaches the host
-- `openmicro doctor --capture` forces raw capture-only mode, recording idle/pressed HID report pairs per control without any parser — the data needed to add a driver for a pad the parsers misread
+- `codingmacro doctor --capture` forces raw capture-only mode, recording idle/pressed HID report pairs per control without any parser — the data needed to add a driver for a pad the parsers misread
 
 ### Fixed
 
@@ -59,7 +77,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Voice now actually stops in the host's own pane on focus change. When the host's session was tracked by session id (the normal case once hooks register it), `stopVoice` looked for a client instance that doesn't exist for host-owned sessions and gave up with "voice stop not delivered" — the first-launched session kept transcribing after focus moved away. The stop keystroke now falls back to the host's own pty, mirroring how regular key routing already handled it
-- LT space cycling no longer eats presses at the wrap-around. `cycleHerdrAgent` changed the herdr pane without marking the change as seen, so the focus poll mistook openmicro's own pane switch for a mouse click and re-synced the workspace right after LT stepped past the last space into local mode — undoing the press. Cycling now records its own pane changes, so LT wraps last space → local mode → first space without dead presses
+- LT space cycling no longer eats presses at the wrap-around. `cycleHerdrAgent` changed the herdr pane without marking the change as seen, so the focus poll mistook codingmacro's own pane switch for a mouse click and re-synced the workspace right after LT stepped past the last space into local mode — undoing the press. Cycling now records its own pane changes, so LT wraps last space → local mode → first space without dead presses
 
 ## [0.1.17] - 2026-07-17
 
@@ -96,13 +114,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - Voice/keys focus now follows mouse clicks on herdr panes and spaces: focus changes made inside the herdr UI fired no controller event, so input stayed routed to the previously focused pane. The host now polls the focused herdr agent (1s, no-op outside herdr) and retargets input routing whenever it moves
-- Controller input is dropped entirely while herdr focus sits on a pane hosting no openmicro session (plain terminal, foreign agent, empty space), instead of falling through to the host's own pty — typing into a pane the user isn't looking at is worse than a no-op. Explicit local picks (touchpad in local mode, L2 back to local mode) unblock input
+- Controller input is dropped entirely while herdr focus sits on a pane hosting no codingmacro session (plain terminal, foreign agent, empty space), instead of falling through to the host's own pty — typing into a pane the user isn't looking at is worse than a no-op. Explicit local picks (touchpad in local mode, L2 back to local mode) unblock input
 
 ## [0.1.12] - 2026-07-17
 
 ### Fixed
 
-- Voice/keys input now retargets when switching herdr spaces: cycling to a new space left input routing (`focusSessionId`) on the previously-focused agent in the old space, so voice spilled across spaces. Entering a space now runs the same agent retargeting as touchpad cycling, and stale focus is cleared when the space is empty or the focused pane hosts no openmicro session
+- Voice/keys input now retargets when switching herdr spaces: cycling to a new space left input routing (`focusSessionId`) on the previously-focused agent in the old space, so voice spilled across spaces. Entering a space now runs the same agent retargeting as touchpad cycling, and stale focus is cleared when the space is empty or the focused pane hosts no codingmacro session
 
 ## [0.1.11] - 2026-07-17
 
@@ -114,19 +132,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- Herdr agent visibility (root cause, confirmed against herdr source): herdr's own claude integration hook (`~/.claude/hooks/herdr-agent-state.sh`, gated on `HERDR_ENV=1`) also runs inside the wrapped agent and claims the pane's session as `herdr:claude`. Once a pane's session has a different owner, herdr silently drops every `pane report-agent` from openmicro regardless of `--seq` — takeover requires herdr to natively detect the reporting agent in the pane's foreground, which it never can for openmicro. The wrapper now removes `HERDR_ENV` from the wrapped agent's environment so herdr's hooks no-op inside it and openmicro stays the pane's sole reporter (`HERDR_PANE_ID` is still passed through for openmicro's own hooks). Panes whose session was already claimed by a previous direct-claude run stay stuck until closed — open a fresh pane
+- Herdr agent visibility (root cause, confirmed against herdr source): herdr's own claude integration hook (`~/.claude/hooks/herdr-agent-state.sh`, gated on `HERDR_ENV=1`) also runs inside the wrapped agent and claims the pane's session as `herdr:claude`. Once a pane's session has a different owner, herdr silently drops every `pane report-agent` from codingmacro regardless of `--seq` — takeover requires herdr to natively detect the reporting agent in the pane's foreground, which it never can for codingmacro. The wrapper now removes `HERDR_ENV` from the wrapped agent's environment so herdr's hooks no-op inside it and codingmacro stays the pane's sole reporter (`HERDR_PANE_ID` is still passed through for codingmacro's own hooks). Panes whose session was already claimed by a previous direct-claude run stay stuck until closed — open a fresh pane
 
 ## [0.1.9] - 2026-07-17
 
 ### Fixed
 
-- Herdr agent visibility (for real this time): herdr silently drops any `pane report-agent` / `pane release-agent` request whose `--seq` is not strictly greater than the last seen — and a request without `--seq` defaults to 0, so every openmicro report (including the v0.1.8 startup pane claim) was discarded while herdr still replied ok. All report/release calls now pass an epoch-nanosecond `--seq`, matching herdr's own integration hook
+- Herdr agent visibility (for real this time): herdr silently drops any `pane report-agent` / `pane release-agent` request whose `--seq` is not strictly greater than the last seen — and a request without `--seq` defaults to 0, so every codingmacro report (including the v0.1.8 startup pane claim) was discarded while herdr still replied ok. All report/release calls now pass an epoch-nanosecond `--seq`, matching herdr's own integration hook
 
 ## [0.1.8] - 2026-07-17
 
 ### Fixed
 
-- Herdr agent visibility: claim the herdr pane at wrapper startup (releasing it on shutdown) so the wrapped agent's own herdr integration hook can't claim it first — herdr honors the first source to claim a pane and silently drops state reports from every other source, which kept openmicro sessions out of the herdr agents panel
+- Herdr agent visibility: claim the herdr pane at wrapper startup (releasing it on shutdown) so the wrapped agent's own herdr integration hook can't claim it first — herdr honors the first source to claim a pane and silently drops state reports from every other source, which kept codingmacro sessions out of the herdr agents panel
 
 ## [0.1.7] - 2026-07-17
 
@@ -148,7 +166,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- Fixed the DualSense touchpad not cycling between open sessions: a freshly opened wrapped session fired no hook until its first prompt, so it never entered the touchpad cycle list. openmicro now installs a `SessionStart` hook and tracks the session as `idle` from the moment it opens ([#16](https://github.com/stephenleo/OpenMicro/pull/16))
+- Fixed the DualSense touchpad not cycling between open sessions: a freshly opened wrapped session fired no hook until its first prompt, so it never entered the touchpad cycle list. codingmacro now installs a `SessionStart` hook and tracks the session as `idle` from the moment it opens ([#16](https://github.com/stephenleo/OpenMicro/pull/16))
 - Fixed client sessions silently dropping out of the touchpad rotation after exactly 5 idle minutes: Node's `fetch` (undici) enforces a 300s body timeout on silent streams, killing the client keystroke SSE stream and removing its sessions on the host. The host now sends an SSE comment heartbeat every 25s to keep idle streams alive ([#16](https://github.com/stephenleo/OpenMicro/pull/16))
 
 ### Added
@@ -159,7 +177,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- Route Claude sessions by hook ownership instead of cwd: every wrapped agent is spawned with `OPENMICRO_INSTANCE_ID` in its environment, hook commands self-identify via the `X-Openmicro-Instance-Id` header, and the host only trusts hooks from wrappers it knows. Fixes touchpad input routing to the wrong terminal when several sessions share a directory, and preserves a manual touchpad selection when another session demands attention ([#12](https://github.com/stephenleo/OpenMicro/pull/12))
+- Route Claude sessions by hook ownership instead of cwd: every wrapped agent is spawned with `CODINGMACRO_INSTANCE_ID` in its environment, hook commands self-identify via the `X-Openmicro-Instance-Id` header, and the host only trusts hooks from wrappers it knows. Fixes touchpad input routing to the wrong terminal when several sessions share a directory, and preserves a manual touchpad selection when another session demands attention ([#12](https://github.com/stephenleo/OpenMicro/pull/12))
 
 ### Docs
 
@@ -169,7 +187,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- `openmicro --version` now reports openmicro's own version instead of the wrapped agent's ([#8](https://github.com/stephenleo/OpenMicro/pull/8))
+- `codingmacro --version` now reports codingmacro's own version instead of the wrapped agent's ([#8](https://github.com/stephenleo/OpenMicro/pull/8))
 - Corrected the MIT license metadata published to npm
 
 ### Added
@@ -186,7 +204,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- `openmicro doctor` — interactive controller capture pipeline so the community can record and contribute fixtures for untested gamepads ([#5](https://github.com/stephenleo/OpenMicro/pull/5))
+- `codingmacro doctor` — interactive controller capture pipeline so the community can record and contribute fixtures for untested gamepads ([#5](https://github.com/stephenleo/OpenMicro/pull/5))
 
 ## [0.1.1] - 2026-07-16
 

@@ -1,4 +1,4 @@
-// Unit tests for the herdr bridge: openmicro state → herdr CLI arg mapping,
+// Unit tests for the herdr bridge: codingmacro state → herdr CLI arg mapping,
 // and total error swallowing (herdr absent must never break the host).
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -36,9 +36,9 @@ describe('reportAgentState', () => {
         'report-agent',
         'pane-1',
         '--source',
-        'openmicro',
+        'codingmacro',
         '--agent',
-        'openmicro',
+        'codingmacro',
         '--state',
         herdrState,
         '--seq',
@@ -156,9 +156,9 @@ describe('releaseAgent', () => {
         'release-agent',
         'pane-3',
         '--source',
-        'openmicro',
+        'codingmacro',
         '--agent',
-        'openmicro',
+        'codingmacro',
         '--seq',
         expect.stringMatching(/^\d+$/),
       ],

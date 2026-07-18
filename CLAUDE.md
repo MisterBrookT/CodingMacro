@@ -1,4 +1,4 @@
-# OpenMicro — project conventions
+# CodingMacro — project conventions
 
 ## Releases
 

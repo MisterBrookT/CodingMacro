@@ -77,7 +77,7 @@ export function renderTable(reports: FixtureReport[]): string {
     '| Controller | Reports as | VID:PID | Connection | Driver | Buttons passed | Output | Status |\n' +
     '| --- | --- | --- | --- | --- | --- | --- | --- |'
   if (reports.length === 0) {
-    return header + '\n| _none yet — run `openmicro doctor` and open a PR_ | | | | | | | |'
+    return header + '\n| _none yet — run `codingmacro doctor` and open a PR_ | | | | | | | |'
   }
   // Doctor prompts the tester for the real make/model; older fixtures without
   // the field fall back to the firmware product string.

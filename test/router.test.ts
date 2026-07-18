@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../src/layers.js'
-import type { ControlId, Layer, OpenMicroConfig } from '../src/layers.js'
+import type { ControlId, Layer, CodingMacroConfig } from '../src/layers.js'
 import { GUARD_WINDOW_MS, LayerRouter } from '../src/router.js'
 import type { Action } from '../src/harness/types.js'
 import type { AxisId, ButtonId, ControllerEvent } from '../src/types.js'
@@ -19,14 +19,17 @@ function layer(name: string, bindings: Partial<Record<ControlId, Action>> = {}):
   return { name, color: { r: 0, g: 0, b: 0 }, bindings }
 }
 
-function makeConfig(overrides: Partial<Record<number, Layer>> = {}): OpenMicroConfig {
+function makeConfig(overrides: Partial<Record<number, Layer>> = {}): CodingMacroConfig {
   const layers = [0, 1, 2, 3, 4, 5].map(
     (i) => overrides[i] ?? layer(`Layer ${i + 1}`),
-  ) as OpenMicroConfig['layers']
+  ) as CodingMacroConfig['layers']
   return { layers, workflows: {} }
 }
 
-function makeRouter(config: OpenMicroConfig): { router: LayerRouter; tick: (ms: number) => void } {
+function makeRouter(config: CodingMacroConfig): {
+  router: LayerRouter
+  tick: (ms: number) => void
+} {
   let now = 0
   const router = new LayerRouter(config, { now: () => now })
   return { router, tick: (ms) => (now += ms) }

@@ -1,5 +1,5 @@
 // User config: 6 remappable layers + workflow prompt presets, persisted at
-// ~/.openmicro/config.json (zod-validated, atomic tmp+rename like
+// ~/.codingmacro/config.json (zod-validated, atomic tmp+rename like
 // hooks-install.ts). Layer 0 ships the Codex Micro parity bindings from
 // PLAN.md; layers 1-5 are blank canvases the user fills in via the config
 // file. A missing file self-seeds with DEFAULT_CONFIG; an invalid file is
@@ -36,7 +36,7 @@ export interface Layer {
   bindings: Partial<Record<ControlId, Action>>
 }
 
-export interface OpenMicroConfig {
+export interface CodingMacroConfig {
   /** Exactly 6 layers, index = layer number (0-5). */
   layers: [Layer, Layer, Layer, Layer, Layer, Layer]
   /** presetId -> prompt template text, referenced by `{ type: 'workflow', presetId }` bindings. */
@@ -113,6 +113,16 @@ const configSchema = z.object({
   workflows: z.record(z.string(), z.string()),
 })
 
+/** Validate a profile received from memory, the dashboard, or a shared file. */
+export function parseConfig(value: unknown): CodingMacroConfig {
+  const result = configSchema.safeParse(value)
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+    throw new Error(`codingmacro: invalid config:\n${issues.join('\n')}`)
+  }
+  return result.data as CodingMacroConfig
+}
+
 // touchpad cycles focus across occupied session slots. `focus_session` is a
 // core-handled action (never reaches a Harness); index -1 is a sentinel this
 // binding uses to mean "cycle to the next session" rather than "jump to slot N".
@@ -131,7 +141,7 @@ function blankLayer(index: number): Layer {
   return { name: `Layer ${index + 1}`, color: LAYER_COLORS[index]!, bindings: {} }
 }
 
-export const DEFAULT_CONFIG: OpenMicroConfig = {
+export const DEFAULT_CONFIG: CodingMacroConfig = {
   layers: [
     {
       name: 'Layer 1',
@@ -176,21 +186,21 @@ export const DEFAULT_CONFIG: OpenMicroConfig = {
 }
 
 function defaultConfigPath(): string {
-  return path.join(os.homedir(), '.openmicro', 'config.json')
+  return path.join(os.homedir(), '.codingmacro', 'config.json')
 }
 
 /**
  * Atomically write a config to disk (tmp file + rename, same pattern as hooks-install.ts).
  *
  * Args:
- *     config (OpenMicroConfig): Config to persist.
- *     configPath (string): Target path. Defaults to ~/.openmicro/config.json.
+ *     config (CodingMacroConfig): Config to persist.
+ *     configPath (string): Target path. Defaults to ~/.codingmacro/config.json.
  *
  * Returns:
  *     None.
  */
 export function saveConfig(
-  config: OpenMicroConfig,
+  config: CodingMacroConfig,
   configPath: string = defaultConfigPath(),
 ): void {
   fs.mkdirSync(path.dirname(configPath), { recursive: true })
@@ -203,15 +213,15 @@ export function saveConfig(
  * Load the config, seeding a fresh DEFAULT_CONFIG file when none exists.
  *
  * Args:
- *     configPath (string): Target path. Defaults to ~/.openmicro/config.json.
+ *     configPath (string): Target path. Defaults to ~/.codingmacro/config.json.
  *
  * Returns:
- *     OpenMicroConfig: The loaded (or freshly-seeded default) config.
+ *     CodingMacroConfig: The loaded (or freshly-seeded default) config.
  *
  * Throws:
  *     Error: The file exists but is not valid JSON or fails schema validation. The file is left untouched.
  */
-export function loadConfig(configPath: string = defaultConfigPath()): OpenMicroConfig {
+export function loadConfig(configPath: string = defaultConfigPath()): CodingMacroConfig {
   let raw: string
   try {
     raw = fs.readFileSync(configPath, 'utf8')
@@ -228,14 +238,15 @@ export function loadConfig(configPath: string = defaultConfigPath()): OpenMicroC
     parsed = JSON.parse(raw)
   } catch (err) {
     throw new Error(
-      `openmicro: config at ${configPath} is not valid JSON: ${(err as Error).message}`,
+      `codingmacro: config at ${configPath} is not valid JSON: ${(err as Error).message}`,
     )
   }
 
-  const result = configSchema.safeParse(parsed)
-  if (!result.success) {
-    const issues = result.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
-    throw new Error(`openmicro: invalid config at ${configPath}:\n${issues.join('\n')}`)
+  try {
+    return parseConfig(parsed)
+  } catch (err) {
+    throw new Error(
+      (err as Error).message.replace('invalid config:', `invalid config at ${configPath}:`),
+    )
   }
-  return result.data as OpenMicroConfig
 }

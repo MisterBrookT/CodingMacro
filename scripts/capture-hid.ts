@@ -9,7 +9,7 @@
 //   npm run capture -- 045e 02ea 30    # ... with a 30s window
 //
 // Gotchas (also listed in CONTROLLERS.md): "cannot open device" means
-// something else holds the pad (a running doctor/openmicro session, Steam) —
+// something else holds the pad (a running doctor/codingmacro session, Steam) —
 // close it and retry. Zero reports at idle is normal; many pads only report
 // on change.
 

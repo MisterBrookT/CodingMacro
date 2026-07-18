@@ -1,7 +1,7 @@
 // Host HTTP server on the singleton port. Receives agent lifecycle hook POSTs
 // (/om-hook/<event>), classifies them into an AgentState via the harness that
 // owns the reporting session, and forwards terminal keystrokes to client
-// instances over SSE. No game/sidebar/static serving — openmicro drives a
+// instances over SSE. No game/sidebar/static serving — codingmacro drives a
 // controller, not a browser tab.
 
 import { EventEmitter } from 'node:events'
@@ -12,12 +12,15 @@ import { releaseAgent, reportAgentState } from './herdr.js'
 import { logger } from './logger.js'
 import { HOOK_PATH, HOST_URL } from './ports.js'
 import { SessionTracker } from './state.js'
+import { dashboardHtml } from './dashboard.js'
+import type { CodingMacroConfig } from './layers.js'
+import type { AxisId, ButtonId, ControllerEvent, ControllerType } from './types.js'
 
 // Every wrapped agent's hooks carry this ownership header (the pty exports
-// OPENMICRO_INSTANCE_ID to the agent, and hook commands run with the agent's
-// env). Header-less hooks come from sessions openmicro never wrapped — cwd is
+// CODINGMACRO_INSTANCE_ID to the agent, and hook commands run with the agent's
+// env). Header-less hooks come from sessions codingmacro never wrapped — cwd is
 // ambiguous when several sessions share a directory, so they are ignored.
-const INSTANCE_HEADER = 'x-openmicro-instance-id'
+const INSTANCE_HEADERS = ['x-codingmacro-instance-id', 'x-openmicro-instance-id'] as const
 
 // Herdr pane id, echoed back by hook commands when the wrapped agent runs
 // inside a herdr-managed pane (HERDR_PANE_ID in its env). Only honored on
@@ -29,6 +32,75 @@ const HERDR_PANE_HEADER = 'x-herdr-pane-id'
 // dropped their sessions from the touchpad cycle. A comment frame every 25s
 // keeps the stream alive; SSE clients ignore comment lines by spec.
 const HEARTBEAT_MS = 25_000
+
+const BUTTON_IDS: ReadonlySet<ButtonId> = new Set([
+  'south',
+  'east',
+  'west',
+  'north',
+  'dpad_up',
+  'dpad_down',
+  'dpad_left',
+  'dpad_right',
+  'l1',
+  'r1',
+  'l2',
+  'r2',
+  'l3',
+  'r3',
+  'menu',
+  'view',
+  'touchpad',
+])
+const AXIS_IDS: ReadonlySet<AxisId> = new Set([
+  'left_x',
+  'left_y',
+  'right_x',
+  'right_y',
+  'l2',
+  'r2',
+])
+const CONTROLLER_TYPES: ReadonlySet<ControllerType> = new Set([
+  'xbox',
+  'dualsense',
+  'ds4',
+  'gamesir',
+  'generic-hid',
+  'simulated',
+])
+
+export interface HostServerOptions {
+  simulationEnabled?: boolean
+  configProvider?: () => CodingMacroConfig
+  configWriter?: (config: CodingMacroConfig) => void
+}
+
+function parseControllerEvent(value: unknown): ControllerEvent | null {
+  if (!value || typeof value !== 'object') return null
+  const event = value as Record<string, unknown>
+  if (event.kind === 'button') {
+    if (typeof event.button !== 'string' || !BUTTON_IDS.has(event.button as ButtonId)) return null
+    if (typeof event.pressed !== 'boolean') return null
+    return { kind: 'button', button: event.button as ButtonId, pressed: event.pressed }
+  }
+  if (event.kind === 'axis') {
+    if (typeof event.axis !== 'string' || !AXIS_IDS.has(event.axis as AxisId)) return null
+    if (typeof event.value !== 'number' || !Number.isFinite(event.value)) return null
+    const min = event.axis === 'l2' || event.axis === 'r2' ? 0 : -1
+    if (event.value < min || event.value > 1) return null
+    return { kind: 'axis', axis: event.axis as AxisId, value: event.value }
+  }
+  if (event.kind === 'connected') {
+    if (
+      typeof event.controllerType !== 'string' ||
+      !CONTROLLER_TYPES.has(event.controllerType as ControllerType)
+    )
+      return null
+    return { kind: 'connected', controllerType: event.controllerType as ControllerType }
+  }
+  if (event.kind === 'disconnected') return { kind: 'disconnected' }
+  return null
+}
 
 function sse(res: http.ServerResponse): void {
   res.writeHead(200, {
@@ -51,6 +123,15 @@ function readBody(req: http.IncomingMessage): Promise<string> {
     req.on('end', () => resolve(body))
     req.on('error', () => resolve(body))
   })
+}
+
+function instanceHeader(req: http.IncomingMessage): string | undefined {
+  for (const name of INSTANCE_HEADERS) {
+    const value = req.headers[name]
+    const first = Array.isArray(value) ? value[0] : value
+    if (first) return first
+  }
+  return undefined
 }
 
 /**
@@ -84,6 +165,7 @@ export class HostServer extends EventEmitter {
   constructor(
     private readonly hostHarness: Harness,
     private readonly hostWrapperId?: string,
+    private readonly options: HostServerOptions = {},
   ) {
     super()
     this.tracker = new SessionTracker({
@@ -166,7 +248,92 @@ export class HostServer extends EventEmitter {
 
     if (pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ app: 'openmicro' }))
+      res.end(JSON.stringify({ app: 'codingmacro', simulation: this.simulationEnabled }))
+      return
+    }
+
+    if (req.method === 'GET' && (pathname === '/' || pathname === '/dashboard')) {
+      res.writeHead(pathname === '/' ? 302 : 200, {
+        ...(pathname === '/'
+          ? { Location: '/dashboard' }
+          : { 'Content-Type': 'text/html; charset=utf-8' }),
+        'Cache-Control': 'no-store',
+        'Content-Security-Policy':
+          "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
+      })
+      res.end(pathname === '/' ? undefined : dashboardHtml(this.simulationEnabled))
+      return
+    }
+
+    if (req.method === 'GET' && pathname === '/api/status') {
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
+      res.end(
+        JSON.stringify({
+          app: 'codingmacro',
+          simulation: this.simulationEnabled,
+          sessions: this.tracker.list(),
+          aggregate: this.tracker.aggregate(),
+        }),
+      )
+      return
+    }
+
+    if (req.method === 'GET' && pathname === '/api/config') {
+      const config = this.options.configProvider?.()
+      if (!config) {
+        res.writeHead(404)
+        res.end()
+        return
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
+      res.end(JSON.stringify(config))
+      return
+    }
+
+    if (req.method === 'PUT' && pathname === '/api/config') {
+      if (!this.isTrustedMutationOrigin(req)) {
+        res.writeHead(403)
+        res.end()
+        return
+      }
+      if (!this.options.configWriter) {
+        res.writeHead(404)
+        res.end()
+        return
+      }
+      try {
+        const config = JSON.parse(await readBody(req)) as CodingMacroConfig
+        this.options.configWriter(config)
+        res.writeHead(204)
+        res.end()
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: (err as Error).message }))
+      }
+      return
+    }
+
+    if (req.method === 'POST' && pathname === '/api/simulate') {
+      if (!this.simulationEnabled || !this.isTrustedMutationOrigin(req)) {
+        res.writeHead(403)
+        res.end()
+        return
+      }
+      const body = await readBody(req)
+      let event: ControllerEvent | null = null
+      try {
+        event = parseControllerEvent(JSON.parse(body))
+      } catch {
+        // Invalid JSON is a bad simulated event.
+      }
+      if (!event) {
+        res.writeHead(400)
+        res.end()
+        return
+      }
+      this.emit('controller-event', event)
+      res.writeHead(204)
+      res.end()
       return
     }
 
@@ -205,6 +372,19 @@ export class HostServer extends EventEmitter {
     res.end()
   }
 
+  private get simulationEnabled(): boolean {
+    return this.options.simulationEnabled === true
+  }
+
+  private isTrustedMutationOrigin(req: http.IncomingMessage): boolean {
+    const origin = req.headers.origin
+    if (!origin) return true // native client or curl
+    return (
+      origin === `http://127.0.0.1:${this.boundPort}` ||
+      origin === `http://localhost:${this.boundPort}`
+    )
+  }
+
   private async handleHook(
     event: string,
     req: http.IncomingMessage,
@@ -220,10 +400,9 @@ export class HostServer extends EventEmitter {
       // Payload shape is the harness's internal contract — event name alone still works.
     }
 
-    const header = req.headers[INSTANCE_HEADER]
-    let wrapperId = Array.isArray(header) ? header[0] : header
+    let wrapperId = instanceHeader(req)
     // GUI host fallback: a usesPty:false host drives a desktop app that has no
-    // OPENMICRO_INSTANCE_ID env, so its hooks arrive with an empty/missing
+    // CODINGMACRO_INSTANCE_ID env, so its hooks arrive with an empty/missing
     // header — attribute them to the host wrapper so state reaches the
     // tracker. usesPty defaults true, so this is a no-op for CLI harnesses.
     // Claude-origin hooks also arrive header-less (any unwrapped Claude Code
@@ -238,7 +417,7 @@ export class HostServer extends EventEmitter {
 
     // Only sessions owned by an active wrapper (the host's own agent or a
     // registered client) drive the FSM. Header-less hooks come from agent
-    // sessions openmicro never wrapped; when scoping is on they are ignored —
+    // sessions codingmacro never wrapped; when scoping is on they are ignored —
     // cwd cannot disambiguate sessions sharing a directory.
     let trusted: boolean
     let harness: Harness = this.hostHarness

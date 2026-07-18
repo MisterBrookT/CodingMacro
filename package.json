@@ -1,16 +1,19 @@
 {
-  "name": "openmicro",
-  "version": "1.0.1",
-  "description": "Open-source replica of Work Louder's Codex Micro using a consumer gamepad as the physical AI-agent controller.",
+  "name": "codingmacro",
+  "version": "0.1.0",
+  "description": "Gamepad control center for Codex, Claude Code, and AI coding agents.",
   "license": "MIT",
-  "author": "stephenleo",
+  "author": "Yinghao Tang",
+  "contributors": [
+    "Stephen Leo (OpenMicro upstream)"
+  ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/stephenleo/OpenMicro.git"
+    "url": "git+https://github.com/MisterBrookT/CodingMacro.git"
   },
   "type": "module",
   "bin": {
-    "openmicro": "dist/cli.js"
+    "codingmacro": "dist/cli.js"
   },
   "exports": {
     ".": {
@@ -25,7 +28,8 @@
   },
   "files": [
     "dist",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "NOTICE.md"
   ],
   "engines": {
     "node": ">=22"

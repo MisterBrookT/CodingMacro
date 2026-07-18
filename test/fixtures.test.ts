@@ -1,5 +1,5 @@
 // Community controller fixtures. Each file in test/fixtures/controllers/ is a
-// verbatim `openmicro doctor` report. This suite:
+// verbatim `codingmacro doctor` report. This suite:
 //   1. replays every captured raw report through the matching parse function
 //      and asserts the expected control's press event fires — so a new fixture
 //      dropped in by a contributor gets CI coverage with zero test edits;

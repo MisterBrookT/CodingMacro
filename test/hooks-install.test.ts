@@ -8,7 +8,7 @@ let dir: string
 let settingsPath: string
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openmicro-hooks-'))
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codingmacro-hooks-'))
   settingsPath = path.join(dir, 'settings.json')
 })
 
@@ -25,7 +25,7 @@ function read(): {
 }
 
 describe('installClaudeHooks', () => {
-  it('creates settings.json with all openmicro hook events', () => {
+  it('creates settings.json with all codingmacro hook events', () => {
     expect(installClaudeHooks(settingsPath)).toBe('changed')
     const settings = read()
     for (const event of [
@@ -47,7 +47,7 @@ describe('installClaudeHooks', () => {
     installClaudeHooks(settingsPath)
     const command = read().hooks.Stop![0]!.hooks[0]!.command
     expect(command).toBe(
-      'curl -s --max-time 1 -X POST http://127.0.0.1:48762/om-hook/Stop -H \'Content-Type: application/json\' -H "X-Openmicro-Instance-Id: $OPENMICRO_INSTANCE_ID" -H "X-Herdr-Pane-Id: $HERDR_PANE_ID" -d @- >/dev/null 2>&1 || true',
+      'curl -s --max-time 1 -X POST http://127.0.0.1:48762/om-hook/Stop -H \'Content-Type: application/json\' -H "X-CodingMacro-Instance-Id: $CODINGMACRO_INSTANCE_ID" -H "X-Herdr-Pane-Id: $HERDR_PANE_ID" -d @- >/dev/null 2>&1 || true',
     )
     // Coexistence guard: vibesense purges any command containing the bare
     // substring `/hook/`. Ours must never contain it.
@@ -88,7 +88,7 @@ describe('installClaudeHooks', () => {
     expect(stopCommands.some((c) => c.includes('/om-hook/Stop'))).toBe(true)
   })
 
-  it('replaces stale openmicro entries instead of accumulating them', () => {
+  it('replaces stale codingmacro entries instead of accumulating them', () => {
     fs.writeFileSync(
       settingsPath,
       JSON.stringify({
@@ -125,7 +125,7 @@ describe('installCodexHooks', () => {
       expect(groups[0]!.matcher, event).toBeUndefined()
       const command = groups[0]!.hooks[0]!.command
       expect(command).toContain(`/om-hook/${event}`)
-      expect(command).toContain('X-Openmicro-Instance-Id: $OPENMICRO_INSTANCE_ID')
+      expect(command).toContain('X-CodingMacro-Instance-Id: $CODINGMACRO_INSTANCE_ID')
       expect(command).toContain('X-Herdr-Pane-Id: $HERDR_PANE_ID')
       expect(command).toContain("printf '{}'")
       expect(command.includes('/hook/')).toBe(false) // coexistence guard
@@ -155,7 +155,7 @@ describe('installCodexHooks', () => {
     expect(settings.hooks.Stop).toHaveLength(2)
   })
 
-  it('replaces stale openmicro entries but keeps vibesense and arbitrary webhooks', () => {
+  it('replaces stale codingmacro entries but keeps vibesense and arbitrary webhooks', () => {
     fs.writeFileSync(
       settingsPath,
       JSON.stringify({
@@ -188,8 +188,8 @@ describe('installCodexHooks', () => {
       'curl http://127.0.0.1:48753/hook/Stop -H "X-Vibesense-Instance-Id: $VIBESENSE_INSTANCE_ID"',
     )
     expect(commands).toContain('curl https://example.com/hook/Stop')
-    // exactly one fresh openmicro entry (the stale one replaced)
-    expect(commands.filter((c) => c.includes('X-Openmicro-Instance-Id'))).toHaveLength(1)
+    // exactly one fresh codingmacro entry (the stale one replaced)
+    expect(commands.filter((c) => c.includes('X-CodingMacro-Instance-Id'))).toHaveLength(1)
   })
 
   it('leaves invalid JSON untouched and reports failure', () => {
