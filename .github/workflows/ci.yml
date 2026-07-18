@@ -19,3 +19,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+      - name: Build macOS menu-bar app
+        if: runner.os == 'macOS'
+        run: |
+          ./macos/build.sh
+          codesign --verify --deep --strict dist-macos/CodingMacro.app
+          plutil -lint dist-macos/CodingMacro.app/Contents/Info.plist
