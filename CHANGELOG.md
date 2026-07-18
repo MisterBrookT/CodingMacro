@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.0] - 2026-07-18
+
+### Added
+
+- Native universal macOS menu-bar app for starting Codex control, simulator mode, Dashboard, controller doctor, logs, and explicit Accessibility onboarding.
+- Tag-driven macOS app packaging and `CodingMacro-macOS.zip` release asset.
+- One-line installer now installs both CLI and menu-bar app into `~/Applications` on macOS.
+
+### Security
+
+- Accessibility is requested only after the user selects “Enable Accessibility…”. App launch stays silent.
+
 ## [0.1.1] - 2026-07-18
 
 ### Fixed

@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-macos/
 .DS_Store
 *.log
 .claude/settings.local.json

@@ -26,9 +26,11 @@ One command installs the latest GitHub release:
 curl -fsSL https://github.com/MisterBrookT/CodingMacro/raw/refs/heads/main/install.sh | sh
 ```
 
-Requires macOS and Node.js 22+. Codex desktop control needs Accessibility permission for keyboard injection. CLI harnesses keep normal terminal keyboard input.
+Requires macOS and Node.js 22+. The installer adds the CLI and opens the menu-bar app from `~/Applications/CodingMacro.app`. Codex desktop control needs Accessibility permission only after you choose **Enable Accessibility…**.
 
 ## Start
+
+Use menu-bar actions for Codex, simulator, Dashboard, and controller doctor. Terminal commands remain available:
 
 ```sh
 codingmacro claude
