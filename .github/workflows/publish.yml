@@ -24,7 +24,10 @@ jobs:
       - run: npm install -g npm@latest
       - run: npm ci
       - run: npm run verify
-      - run: npm publish --access public
+      - run: npm pack
+      - name: Publish to npm
+        if: ${{ vars.NPM_PUBLISH_ENABLED == 'true' }}
+        run: npm publish --access public
       # Tags alone don't show under "Releases" — create the Release object too.
       # Notes come from the tag's CHANGELOG.md section; fall back to generated
       # notes if the section is missing so a release never fails on a doc gap.
@@ -33,9 +36,9 @@ jobs:
             '$0 ~ "^## \\[" ver "\\]" {found=1; next} /^## \[/ {found=0} found' \
             CHANGELOG.md > release-notes.md
           if [ -s release-notes.md ]; then
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md codingmacro-*.tgz
           else
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes codingmacro-*.tgz
           fi
         env:
           GH_TOKEN: ${{ github.token }}

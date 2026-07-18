@@ -20,14 +20,10 @@ CodingMacro adds agent awareness to ordinary gamepads: lifecycle hooks track exe
 
 ## Install
 
-Until the first npm release, install from source:
+One command installs the latest GitHub release:
 
 ```sh
-git clone https://github.com/MisterBrookT/CodingMacro.git
-cd CodingMacro
-npm ci
-npm run build
-npm link
+curl -fsSL https://raw.githubusercontent.com/MisterBrookT/CodingMacro/main/install.sh | sh
 ```
 
 Requires macOS and Node.js 22+. Codex desktop control needs Accessibility permission for keyboard injection. CLI harnesses keep normal terminal keyboard input.
@@ -105,9 +101,12 @@ Doctor writes a replayable report. See [CONTROLLERS.md](CONTROLLERS.md) to add a
 ## Build
 
 ```sh
+git clone https://github.com/MisterBrookT/CodingMacro.git
+cd CodingMacro
 npm ci
 npm run verify
 npm run build
+npm link
 ```
 
 ## Attribution
