@@ -71,6 +71,7 @@ const CONTROLLER_TYPES: ReadonlySet<ControllerType> = new Set([
 
 export interface HostServerOptions {
   simulationEnabled?: boolean
+  controllerTypeProvider?: () => ControllerType | null
   configProvider?: () => CodingMacroConfig
   configWriter?: (config: CodingMacroConfig) => void
 }
@@ -140,6 +141,10 @@ function instanceHeader(req: http.IncomingMessage): string | undefined {
  */
 export class HostServer extends EventEmitter {
   readonly tracker: SessionTracker
+  private controllerType: ControllerType | null = null
+  private controllerEventSeq = 0
+  private lastControllerEvent: (ControllerEvent & { at: number; seq: number }) | null = null
+  private recentControllerEvents: Array<ControllerEvent & { at: number; seq: number }> = []
   /** session_id → wrapper id, learned from hook ownership headers. */
   readonly sessionOwners = new Map<string, string>()
   /** session_id → herdr pane id, learned from hook pane headers — lets herdr agent cycling retarget input routing. */
@@ -176,6 +181,21 @@ export class HostServer extends EventEmitter {
 
   /** Port actually bound (differs from HOST_PORT only in tests using port 0). */
   boundPort = 0
+
+  /** Mirror active hardware into the local HUD without exposing raw HID data. */
+  setControllerType(controllerType: ControllerType | null): void {
+    this.controllerType = controllerType
+  }
+
+  /** Feed normalized events to HUD. Never exposes raw HID reports. */
+  recordControllerEvent(event: ControllerEvent): void {
+    const recorded = { ...event, at: Date.now(), seq: ++this.controllerEventSeq }
+    this.lastControllerEvent = recorded
+    this.recentControllerEvents.push(recorded)
+    if (this.recentControllerEvents.length > 64) this.recentControllerEvents.shift()
+    if (event.kind === 'connected') this.controllerType = event.controllerType
+    if (event.kind === 'disconnected') this.controllerType = null
+  }
 
   /** Bind the singleton port. Resolves true = we are the host, false = port taken. */
   listen(port: number): Promise<boolean> {
@@ -271,6 +291,9 @@ export class HostServer extends EventEmitter {
         JSON.stringify({
           app: 'codingmacro',
           simulation: this.simulationEnabled,
+          controllerType: this.options.controllerTypeProvider?.() ?? this.controllerType,
+          lastControllerEvent: this.lastControllerEvent,
+          recentControllerEvents: this.recentControllerEvents,
           sessions: this.tracker.list(),
           aggregate: this.tracker.aggregate(),
         }),

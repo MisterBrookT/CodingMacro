@@ -95,6 +95,7 @@ const install = harness.installHooks()
 if (install.trustNotice) console.error(install.trustNotice)
 
 const wrapperId = randomUUID()
+let hid: HidManager | null = null
 
 // Claim the herdr pane NOW, before the wrapped agent boots: herdr honors the
 // first source to claim a pane and silently drops every later one, so the
@@ -105,6 +106,7 @@ if (herdrPaneId) reportAgentState(herdrPaneId, 'idle')
 
 const server = new HostServer(harness, wrapperId, {
   simulationEnabled: invocation.simulate,
+  controllerTypeProvider: () => hid?.controllerType ?? null,
   configProvider: () => config,
   configWriter: (next) => {
     const parsed = parseConfig(next)
@@ -128,8 +130,6 @@ function openDashboard(): void {
 }
 
 if (invocation.dashboard) openDashboard()
-
-let hid: HidManager | null = null
 
 function shutdown(): void {
   agent.dispose()
@@ -520,13 +520,16 @@ if (!isHost) {
 
   const handleControllerEvent = (e: ControllerEvent): void => {
     try {
+      server.recordControllerEvent(e)
       if (e.kind === 'connected') {
+        server.setControllerType(e.controllerType)
         logger.info(`Controller connected: ${e.controllerType}`)
         guiStatus(`controller connected (${e.controllerType}) — buttons now drive the app`, 32)
         scheduleFeedback()
         return
       }
       if (e.kind === 'disconnected') {
+        server.setControllerType(null)
         repeater.releaseAll()
         approvalGate.cancel()
         guiStatus('controller disconnected — waiting…', 33)

@@ -81,6 +81,9 @@ describe('HostServer', () => {
     expect(await status.json()).toEqual({
       app: 'codingmacro',
       simulation: false,
+      controllerType: null,
+      lastControllerEvent: null,
+      recentControllerEvents: [],
       sessions: [],
       aggregate: { playing: false, focusSessionId: null, focusIsAttention: false },
     })
@@ -90,6 +93,37 @@ describe('HostServer', () => {
       body: JSON.stringify({ kind: 'button', button: 'south', pressed: true }),
     })
     expect(denied.status).toBe(403)
+  })
+
+  it('exposes connected controller family for adaptive HUD labels', async () => {
+    server.setControllerType('dualsense')
+    const status = await fetch(`${base}/api/status`)
+    expect(await status.json()).toMatchObject({ controllerType: 'dualsense' })
+
+    const dashboard = await fetch(`${base}/dashboard`)
+    expect(await dashboard.text()).toContain('data-playstation="×"')
+  })
+
+  it('prefers live controller provider over last event state', async () => {
+    const live = new HostServer(claude, undefined, {
+      controllerTypeProvider: () => 'dualsense',
+    })
+    await live.listen(0)
+    try {
+      const status = await fetch(`http://127.0.0.1:${live.boundPort}/api/status`)
+      expect(await status.json()).toMatchObject({ controllerType: 'dualsense' })
+    } finally {
+      live.close()
+    }
+  })
+
+  it('exposes normalized button events for live HUD feedback', async () => {
+    server.recordControllerEvent({ kind: 'button', button: 'south', pressed: true })
+    const status = await fetch(`${base}/api/status`)
+    expect(await status.json()).toMatchObject({
+      lastControllerEvent: { kind: 'button', button: 'south', pressed: true },
+      recentControllerEvents: [{ kind: 'button', button: 'south', pressed: true, seq: 1 }],
+    })
   })
 
   it('emits validated controller events when simulation is enabled', async () => {

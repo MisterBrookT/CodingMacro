@@ -22,7 +22,7 @@ import {
   XBOX_PIDS,
   XBOX_VID,
 } from './xbox-driver.js'
-import type { ControllerEvent } from '../types.js'
+import type { ControllerEvent, ControllerType } from '../types.js'
 
 export const DUALSENSE_VID = 0x054c
 export const DUALSENSE_PIDS = [0x0ce6, 0x0df2] // DualSense, DualSense Edge
@@ -90,6 +90,11 @@ export class HidManager extends EventEmitter {
   /** Live output surface of the active driver (DualSense only), or undefined. */
   get output(): ControllerOutput | undefined {
     return this.driver?.output
+  }
+
+  /** Active controller family, available as soon as a matching driver attaches. */
+  get controllerType(): ControllerType | null {
+    return this.driver?.controllerType ?? null
   }
 
   start(): void {

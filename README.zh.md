@@ -6,7 +6,7 @@
 
 让小鸡、Xbox、DualSense 等普通手柄控制 Codex、Claude Code 和多个 Agent 会话。
 
-[官网](https://codingmacro.misterbrookt.chatgpt.site) · [English](README.md) · [手柄兼容表](CONTROLLERS.md) · [参与开发](CONTRIBUTING.md)
+[官网](https://codingmacro.vercel.app) · [English](README.md) · [手柄兼容表](CONTROLLERS.md) · [参与开发](CONTRIBUTING.md)
 
 </div>
 
