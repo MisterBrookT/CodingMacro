@@ -6,7 +6,7 @@
 
 Control Codex, Claude Code, and multiple agent sessions from GameSir, Xbox, DualSense, or any compatible controller.
 
-[中文](README.zh.md) · [Controllers](CONTROLLERS.md) · [Contributing](CONTRIBUTING.md)
+[Website](https://codingmacro.misterbrookt.chatgpt.site) · [中文](README.zh.md) · [Controllers](CONTROLLERS.md) · [Contributing](CONTRIBUTING.md)
 
 [![macOS](https://img.shields.io/badge/macOS-13%2B-17130f?style=flat-square)](https://github.com/MisterBrookT/CodingMacro)
 [![Node](https://img.shields.io/badge/Node-22%2B-17130f?style=flat-square)](package.json)
