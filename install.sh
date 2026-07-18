@@ -19,4 +19,5 @@ fi
 
 curl -fsSL "$asset_url" -o "$tmp_dir/codingmacro.tgz"
 npm install -g "$tmp_dir/codingmacro.tgz"
-codingmacro --version
+bin_dir="$(npm prefix -g)/bin"
+"$bin_dir/codingmacro" --version

@@ -1,6 +1,6 @@
 {
   "name": "codingmacro",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Gamepad control center for Codex, Claude Code, and AI coding agents.",
   "license": "MIT",
   "author": "Yinghao Tang",
@@ -41,7 +41,7 @@
   },
   "scripts": {
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper ../node-pty/prebuilds/*/spawn-helper 2>/dev/null || true",
-    "prepublishOnly": "npm run build",
+    "prepack": "npm run build",
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx src/cli.ts",
     "test": "vitest run --passWithNoTests",
